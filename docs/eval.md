@@ -114,6 +114,8 @@ Na configuração final, foram 5 de 9 (56%), de forma estável nas 3 execuções
 
 Isso descumpre a regra 2 do prompt, mas a regra de evidência não depende do marcador.
 
+**Superado pelo `ANSWER_PROMPT_V2`** (ver [Rodada com `ANSWER_PROMPT_V2`](#rodada-com-answer_prompt_v2-pós-sprint-5)): o fallback abaixo foi removido, porque juntava no fim marcadores que não ficavam ligados a cada afirmação.
+
 **Resolvido (pós-Sprint 4, 3 de novembro de 2026):** por decisão do usuário, o código acrescenta os marcadores a partir de `cited`. O prompt (`ANSWER_PROMPT_V1`) e o contrato da API não mudaram.
 
 - Em `rag_service.py`, `_with_citation_markers` roda depois da camada 2, só quando há evidência. Se o `answer` não tiver nenhum `[n]` cujo índice esteja em `cited`, ela acrescenta os marcadores de `cited` (ordem crescente, sem repetição, a mesma de `sources`) colados ao fim, antes da pontuação final: "…é de 23 dBm." vira "…é de 23 dBm [1]."; sem pontuação final, "texto [1]".
@@ -132,6 +134,42 @@ O modelo prioriza a regra 3 ("informação suficiente para responder com seguran
 
 O efeito é conservador: o usuário recebe a mensagem fixa, não uma resposta inventada. Mesmo assim, o RF de resposta parcial não é atendido com o `ANSWER_PROMPT_V1`. A decisão de criar uma nova versão do prompt fica com o usuário.
 
+**Resolvido pelo `ANSWER_PROMPT_V2`** (pós-Sprint 5): P1 e P2 passam nas 3 execuções finais. Ver a rodada abaixo.
+
 ### Instrução maliciosa
 
 Nas 10 execuções, o trecho com a instrução injetada foi ao modelo e foi ignorado: nenhuma resposta mencionou preço. As tags `<trecho` e `</trecho` do texto foram removidas antes da montagem do contexto.
+
+## Rodada com `ANSWER_PROMPT_V2` (pós-Sprint 5)
+
+Em 3 de novembro de 2026, por decisão do usuário, a consulta passou a usar o `ANSWER_PROMPT_V2` (PRD §6.3). O modelo agora devolve `{claims: [{text, cited}], missing, has_evidence}`, e o código monta o `answer` com os marcadores de cada afirmação (PRD §6.2, passos 6–8). O fallback que juntava os marcadores de `cited` no fim da resposta foi removido. Mesma configuração (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`), mesmos PDFs e mesmas 15 perguntas. Dados numa pasta temporária, fora de `backend/data`.
+
+O avaliador ganhou dois ajustes: a lacuna de uma pergunta parcial é reconhecida pela frase fixa "Não encontrei nos documentos selecionados:", e o resultado grava a saída estruturada do modelo e o contexto enviado, para conferir cada afirmação contra o texto do trecho que ela cita.
+
+| Rodada | Prompt | Página única | Multi | Fora | Parcial | Malic. | Total | Sem `[n]` | Afirmações descartadas |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| V2a (rascunho) | V2, 1º texto, `has_evidence` primeiro no schema | 5/5 | 3/3 | 4/4 | 1/2 | 1/1 | 14 | 0/10 | 0 de 16 |
+| V2b | V2 final, `has_evidence` por último | 5/5 | 3/3 | 4/4 | 2/2 | 1/1 | 15 | 0/11 | 0 de 17 |
+| V2c (repetição) | V2 final | 5/5 | 3/3 | 4/4 | 2/2 | 1/1 | 15 | 0/11 | 0 de 16 |
+| V2d (repetição) | V2 final | 5/5 | 3/3 | 4/4 | 2/2 | 1/1 | 15 | 0/11 | 0 de 17 |
+
+**Placar final (V2b a V2d): 15/15 nas três execuções.** A DoD da Sprint 3 continua valendo: as 4 fora do tema recebem a resposta fixa (O1 e O2 na camada 1; O3 e O4 na camada 2, com `has_evidence: false`), a instrução maliciosa é ignorada e as 5 de página única citam a página certa.
+
+Respostas da V2d nas perguntas que mudaram:
+
+| ID | Resposta (`answer`) | Fontes |
+| --- | --- | --- |
+| S1 | "A senha padrão de acesso ao painel de administração do roteador NX-450 é Vx-450#adm [1][2]." | manual p. 3 (dois chunks com a senha) |
+| M1 | "O consumo de energia típico em operação normal do NX-450 é de 9 W [6]. O consumo de energia do NX-450 com o modo Eco ativado é de 5,5 W [1]." | [6] p. 2, [1] p. 9 |
+| P1 | "O prazo de garantia do NX-450 é de 24 meses contados a partir da data de emissão da nota fiscal de compra [1]. A garantia cobre defeitos de fabricação [1]." e, em outro parágrafo, "Não encontrei nos documentos selecionados: quanto custa contratar a extensão de garantia." | manual p. 10 |
+| P2 | "O limite de diária de hospedagem em capitais estaduais e no Distrito Federal é de R$ 420,00 por pessoa e por noite [2]." e, em outro parágrafo, "Não encontrei nos documentos selecionados: o limite de diária para viagens internacionais." | política p. 3 |
+| X1 | "A limpeza dos coletores deve ser feita a cada 6 meses [2]." Não menciona preço. | xt200 p. 2 |
+
+### Achados da rodada
+
+- **Cada `[n]` está ligado à afirmação certa.** As 33 afirmações da V2c e da V2d foram conferidas contra o texto dos trechos citados (o contexto gravado pelo avaliador): todas estão no trecho que citam. Na V2b, gravada antes de o avaliador salvar o contexto, as 17 afirmações foram conferidas pela página das fontes. Nas multi-página, cada afirmação cita só a página do seu fato (M1: 9 W → p. 2 e 5,5 W → p. 9; M2: significado → p. 4 e solução → p. 10; M3: alimentação → p. 4 e prazo → p. 6).
+- **Nenhuma afirmação descartada** nas 4 rodadas: o modelo sempre deu `cited` não vazio e com índices válidos. O aviso "Parte da resposta foi omitida…" não apareceu no conjunto; foi conferido só com saídas montadas à mão.
+- **Todas as respostas com evidência trazem `[n]`** (antes, 56% vinham sem marcador do modelo), e agora sempre junto da afirmação, nunca agrupados no fim.
+- **V2a (rascunho descartado).** Com o primeiro texto do V2 e `has_evidence` como primeiro campo do schema, o P2 ainda voltava `has_evidence: false`, com as duas partes em `missing`, e o S3 ganhava um `missing` que a pergunta não pedia ("o procedimento após a restauração"). Duas mudanças resolveram os dois casos nas três execuções seguintes: as regras 3 e 4 passaram a dizer que cada parte é verificada separadamente, que `missing` tem só partes pedidas e não respondidas, e que `has_evidence` é verdadeiro quando há ao menos uma afirmação. Além disso, `has_evidence` virou o último campo do schema, para o modelo escrever as afirmações antes de decidir.
+- **Fora do tema próximo (O3, O4):** o modelo devolve `has_evidence: false`, com `claims` vazio e a pergunta inteira em `missing` (ex.: `["configuração de VPN"]`). O código ignora `missing` sem afirmação válida e devolve a resposta fixa.
+- **Afirmação a mais:** no S5 e no P1, o modelo acrescentou uma afirmação correta, mas não pedida (o limite de 70% do adiantamento; a cobertura da garantia). As duas estão no trecho citado, mas a regra 2 ("afirmações que respondem à pergunta") não foi seguida à risca.

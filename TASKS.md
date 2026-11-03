@@ -5,7 +5,7 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 ### Sprint 1 — Base local
 
 - [x] 1.1 Registrar no README as versões de Python e Node usadas.
-- [x] 1.2 Revogar a chave OpenAI exposta e gerar uma nova.
+- [x] 1.2 **[humano]** Revogar a chave OpenAI exposta e gerar uma nova.
 - [x] 1.3 Remover chaves dos scripts do protótipo; ler `OPENAI_API_KEY` do ambiente.
 - [x] 1.4 Criar `.gitignore` (`.env`, `data/`, `node_modules/`, `__pycache__/`) e `.env.example` com todas as variáveis da §3.
 - [x] 1.5 Criar FastAPI com `/api/v1/health`, `config.py`, CORS e handler global de erros (§5.3).
@@ -58,13 +58,13 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** o fluxo da §4.4 completo funciona em 1440 px e 360 px, só com teclado, nos temas claro e escuro, e nenhuma string em inglês aparece na interface. Os dois temas passam no WCAG AA, e a escolha de tema persiste após recarregar (RF-19).
 
-### Sprint 5 — Revisão do MVP
+### Sprint 5 — Revisão do MVP [x]
 
-- [ ] 5.1 Percorrer todos os "Verificar" da §4 e registrar o resultado em `docs/checklist-mvp.md`.
-- [ ] 5.2 Conferir contraste (WCAG AA), foco, labels e ausência de rolagem horizontal.
-- [ ] 5.3 Conferir logs: nenhum conteúdo de PDF, pergunta, resposta ou chave.
-- [ ] 5.4 Registrar duração de indexação e de consulta (p50 em 20 execuções) e custo estimado por documento e por consulta.
-- [ ] 5.5 Documentar no README: backup, retenção, limitações (OCR, volume, multiusuário).
+- [x] 5.1 Percorrer todos os "Verificar" da §4 e registrar o resultado em `docs/checklist-mvp.md`.
+- [x] 5.2 Conferir contraste (WCAG AA), foco, labels e ausência de rolagem horizontal.
+- [x] 5.3 Conferir logs: nenhum conteúdo de PDF, pergunta, resposta ou chave.
+- [x] 5.4 Registrar duração de indexação e de consulta (p50 em 20 execuções) e custo estimado por documento e por consulta.
+- [x] 5.5 Documentar no README: backup, retenção, limitações (OCR, volume, multiusuário).
 
 **DoD:** checklist da §4 100% aprovado ou com desvios documentados; medições da 5.4 registradas na §11.2.
 

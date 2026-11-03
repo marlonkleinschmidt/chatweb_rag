@@ -63,6 +63,47 @@ npm run type-check
 npm run build
 ```
 
+## Operação e limitações
+
+### Backup
+
+- **O que copiar:** o diretório de dados efetivo. Os caminhos são relativos ao diretório onde o uvicorn roda (ver "Decisões", Sprint 1). Com o comando de "Execução", ficam em `backend/data/`:
+  - `app.db`: catálogo SQLite (tabela `documents`);
+  - `chroma/`: vetores e metadados dos chunks;
+  - `documents/`: os PDFs, salvos como `{document_id}.pdf`.
+
+  Se `SQLITE_PATH`, `CHROMA_DIR` ou `DOCUMENTS_DIR` estiverem definidos no `.env`, copie esses caminhos.
+- **Os três juntos e com o backend parado.** Catálogo, vetores e arquivos se referem uns aos outros pelo `document_id`. Uma cópia parcial, ou feita durante uma indexação ou remoção, deixa os três inconsistentes (PRD §8.3).
+- **Exemplo**, com o backend parado e a partir da raiz do repositório:
+
+  ```bash
+  cp -r backend/data backup-data                     # PowerShell: Copy-Item -Recurse backend\data backup-data
+  ```
+
+- **Restaurar:** com o backend parado, apague `backend/data/` e copie o backup inteiro no lugar dele, sem misturar com os dados atuais. Ao subir, o backend marca como `failed` (`processing_interrupted`) os documentos que ficaram em `received` ou `processing` quando ele foi parado.
+- **O `.env` não faz parte do backup de dados.** Ele guarda a `OPENAI_API_KEY`; guarde-o à parte, como segredo. Restaure com o mesmo `EMBEDDING_MODEL` usado na indexação; com outro modelo, a UI pede para reenviar os documentos.
+
+### Retenção
+
+- **Documentos ficam até serem removidos manualmente** (PRD §11.3, item 5). Não há expiração automática.
+- **A remoção apaga tudo do documento**, na ordem vetores → arquivo → registro. Se um passo falhar, o documento fica com `delete_partial`, e um novo "Remover" repete os três passos.
+- **O chat não é persistido.** As mensagens ficam só na memória do navegador e somem ao recarregar a página.
+- **OpenAI:** o texto dos chunks (na indexação) e os trechos e a pergunta (na consulta) são enviados à API da OpenAI. O que ela guarda, e por quanto tempo, segue a política de dados da OpenAI para a API, que deve ser consultada antes do uso com documentos reais (PRD §11.3, item 4). Remover um documento aqui não apaga nada do lado da OpenAI.
+- **Trocar `EMBEDDING_MODEL` exige reindexar:** os vetores antigos ficam incompatíveis. Remova e envie os documentos de novo (a UI mostra o aviso enquanto houver vetor de outro modelo). Mudanças em `CHUNK_SIZE` ou `CHUNK_OVERLAP` também só valem para documentos enviados depois.
+
+### Limitações
+
+- **Sem OCR.** PDFs digitalizados, sem texto extraível, terminam em `failed / pdf_no_text`. Só PDF é aceito.
+- **Limites por arquivo:** `MAX_UPLOAD_MB` (20 MB) e `MAX_PDF_PAGES` (500 páginas). PDFs criptografados são recusados.
+- **Indexação sequencial:** um documento por vez. Os outros esperam em `received`.
+- **Volume previsto:** 1 usuário e até cerca de 100 PDFs (PRD §11.3, item 2). Volumes maiores não foram medidos.
+- **Sem autenticação e sem multiusuário.** O backend escuta só em `127.0.0.1` e aceita CORS só de `http://localhost:5173`. Não exponha a aplicação na rede ou na internet (PRD §2.2).
+- **Uma pergunta por vez, sem histórico:** cada pergunta é respondida sozinha, sem contexto das anteriores, sobre até `MAX_DOCUMENTS_PER_QUERY` (10) documentos.
+- **Parâmetros calibrados com PDFs sintéticos:** `CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` vieram da avaliação de [`docs/eval.md`](docs/eval.md) e devem ser revistos com PDFs reais.
+- **Citações e respostas parciais:** o modelo devolve a resposta como afirmações curtas, cada uma com os seus trechos, e o backend escreve o `[n]` junto de cada afirmação. Afirmação sem trecho válido é omitida, com o aviso "Parte da resposta foi omitida porque não foi possível vinculá-la às fontes.". Pergunta respondível só em parte recebe a parte coberta e o parágrafo "Não encontrei nos documentos selecionados: …" ("Correções pós-Sprint 5"). A separação em partes e a lista do que faltou vêm do modelo, e só foram avaliadas com PDFs sintéticos.
+- **Dados enviados à OpenAI:** o conteúdo dos PDFs e as perguntas saem da máquina (aviso junto ao upload, PRD §7.3).
+- **Mantenha `OPENAI_LOG` e `LANGSMITH_TRACING` desligados com dados reais.** `OPENAI_LOG=debug` faz o SDK da OpenAI registrar no log as perguntas e os trechos enviados, e `LANGSMITH_TRACING=true` envia esse conteúdo ao LangSmith. Só ative algum dos dois depois de uma decisão explícita sobre essa exposição.
+
 ## Decisões
 
 Escolhas que não estavam no PRD, ou que o adaptam, registradas conforme o PRD §1.
@@ -300,7 +341,7 @@ Escolhas que não estavam no PRD, ou que o adaptam, registradas conforme o PRD �
 - **Sem seleção:** o rodapé diz "Selecione ao menos um documento pronto...". Abaixo de `lg`, há o botão "Ir para Documentos", que troca de aba e põe o foco na aba "Documentos". Com seleção, o rodapé mostra "Perguntando sobre n documentos."
 - **Rolagem automática:** só a área de mensagens rola, sem mexer na página. A cada nova mensagem ou indicador, o início dela fica visível: uma resposta longa aparece do começo, e uma curta fica no fim. A rolagem é suave, exceto com `prefers-reduced-motion`.
 - **Resposta sem evidência:** mostra o `answer` da API sem a seção "Fontes", porque `sources` vem vazio.
-- **Pendência (prompt, fora do escopo do frontend):** no teste ponta a ponta, as respostas reais vieram sem nenhum marcador `[n]`, embora com `sources` corretas. É o mesmo achado da Sprint 3. Por isso as citações clicáveis foram testadas com uma resposta simulada. As fontes aparecem mesmo sem marcador.
+- **Pendência (prompt, fora do escopo do frontend):** no teste ponta a ponta, as respostas reais vieram sem nenhum marcador `[n]`, embora com `sources` corretas. É o mesmo achado da Sprint 3. Por isso as citações clicáveis foram testadas com uma resposta simulada. As fontes aparecem mesmo sem marcador. *(Resolvida em "Correções pós-Sprint 4": o backend acrescenta os marcadores quando o modelo não os coloca.)*
 
 **Aviso da OpenAI (4.7)**
 
@@ -392,8 +433,54 @@ Escolhas que não estavam no PRD, ou que o adaptam, registradas conforme o PRD �
 - **A correção:** a transição só vale com a classe `color-transitions` no `<html>`, que o `main.ts` acrescenta depois de dois `requestAnimationFrame`, ou seja, depois da primeira pintura. A troca de tema pelo botão continua animada.
 - **`prefers-reduced-motion`:** a regra agora fica dentro de `@media (prefers-reduced-motion: no-preference)`, e não há mais uma regra de `reduce` para anular. Com `reduce`, não há transição nenhuma.
 
-**Marcadores `[n]` acrescentados pelo código (RF-12)**
+**Marcadores `[n]` acrescentados pelo código (RF-12)** *(Superada em "Correções pós-Sprint 5": `_with_citation_markers` foi removida, e os marcadores agora acompanham cada afirmação.)*
 
 - **O problema:** cerca de 56% das respostas com evidência (sobretudo as de uma frase) vinham sem `[n]` no `answer`, embora `cited` e `sources` estivessem corretos (`docs/eval.md`, "Respostas sem marcador `[n]`"). Sem marcador, a UI não tinha o que tornar clicável.
 - **A correção (decisão do usuário):** depois da camada 2 e só com evidência, se o `answer` não tiver nenhum `[n]` de um índice presente em `cited`, o `rag_service` acrescenta os marcadores de `cited` (mesma ordem e deduplicação de `sources`) colados ao fim, antes da pontuação final: "…é de 23 dBm." vira "…é de 23 dBm [1].". Um `[n]` com índice fora de `cited` não conta como marcador, porque a UI não o tornaria clicável.
 - **Sem mudança** no `ANSWER_PROMPT_V1` nem no contrato da API. A resposta fixa não muda. O log registra só a contagem de marcadores acrescentados.
+
+### Sprint 5
+
+**Checklist do MVP (5.1 e 5.2)**
+
+- **Resultado em [`docs/checklist-mvp.md`](docs/checklist-mvp.md).** Os 28 itens da §4 (RF-01 a RF-19 e o fluxo da §4.4) passaram: 26 sem ressalvas e 2 com desvio documentado. Não houve reprovação.
+- **Desvio D1 (RF-02), resolvido no PRD:** um arquivo acima de `MAX_UPLOAD_MB` recebe `413 file_too_large`, como definem a §5.1 e a §5.3. O RF-02 foi alinhado (decisão do usuário): `413` para tamanho e `422` para os erros de validação do conteúdo.
+- **Desvio D2 (RF-12):** quando o modelo omite os `[n]`, o backend os acrescenta juntos no fim da resposta (por exemplo, `[1][2]`), e não um por afirmação. *(Resolvido em "Correções pós-Sprint 5": um marcador por afirmação.)*
+- **Acessibilidade (5.2): 19 itens aprovados, nenhum reprovado**, nos dois temas, em 1440, 1024/1023, 800 e 360 px. Os estados difíceis de produzir (badges, erros, resposta longa) foram simulados no Playwright. Quatro razões ficam perto do limite (4,71 no botão primário escuro, 4,80, 3,59 e 4,15): qualquer mudança nesses tokens exige nova medição. O botão "Enviar" desabilitado (2,71 / 3,39) está fora do critério WCAG 1.4.3.
+- **Continua pendente (Sprint 3):** perguntas que só podem ser respondidas em parte ainda recebem a resposta fixa de falta de evidência. *(Resolvido em "Correções pós-Sprint 5": a parte coberta é respondida e a parte faltante é indicada.)*
+
+**Logs (5.3)**
+
+- **Logs conferidos sem conteúdo.** Os logs da aplicação registram só IDs, contagens, `duration_ms`, `error_code` e o nome da classe da exceção, nunca a mensagem dela. Num teste com PDF, pergunta e chave marcadoras, nenhum desses textos apareceu no stdout nem no stderr, inclusive com chave inválida.
+- **Logs de terceiros ficam no padrão (WARNING).** `httpx`, `openai`, `chromadb` e `langchain_*` não ganham handler nem nível próprio, então URLs do httpx e payloads do openai não são impressos. Só o access log do uvicorn fica em INFO, com método, caminho e status.
+- **Não definir `OPENAI_LOG` nem `LANGSMITH_TRACING`.** `OPENAI_LOG=debug` faz o SDK registrar a pergunta e os trechos, e `LANGSMITH_TRACING=true` envia o conteúdo ao LangSmith. A configuração do projeto não lê nenhuma das duas. Decisão do usuário: elas ficam desligadas em qualquer ambiente com dados reais, salvo decisão explícita sobre a exposição desses conteúdos.
+- **Nada de conteúdo em query string.** O access log do uvicorn imprime o caminho com a query string, por isso pergunta e texto vão sempre no corpo da requisição.
+
+**Medições (5.4)**
+
+- **Latência:** p50 em 20 execuções, com um PDF sintético de 10 páginas. Indexação: 1,15 s (0,115 s por página). Consulta com evidência: 1,47 s. Consulta sem evidência (não chama o LLM): 0,41 s. Detalhes no PRD §11.2. **Referência preliminar** (decisão do usuário): o PDF é sintético e os tempos incluem a chamada à OpenAI. As metas da §11.2 são provisórias até serem validadas com documentos e condições mais representativas.
+- **Custo estimado** com os preços públicos da OpenAI de 3 de novembro de 2026: cerca de US$ 0,00001 por página indexada e US$ 0,00026 por consulta com evidência (US$ 0,26 por 1.000), sem contar o cache. Consultas barradas na camada 1 custam só o embedding da pergunta.
+- **Tokens de embedding contados com `tiktoken`**, porque o LangChain não expõe o uso da API de embeddings. Os tokens do chat vêm do `usage_metadata` do `langchain-openai`.
+- **Script de medição fora do repositório, com dados temporários**, como o da avaliação da Sprint 3. Ele nunca toca em `backend/data` nem no `.env`, e o código da aplicação não mudou.
+
+### Correções pós-Sprint 5
+
+**Prompt `ANSWER_PROMPT_V2`: citação por afirmação e resposta parcial (RF-12, RF-14)**
+
+- **Prompt `ANSWER_PROMPT_V2`** (3 de novembro de 2026). Texto idêntico ao da PRD §6.3, em `services/prompts.py`. A mensagem do usuário (`QUESTION_PROMPT_V1`) não mudou.
+- **Motivo (decisão do usuário):** duas mudanças.
+  - **Desvio D2:** o fallback de "Correções pós-Sprint 4" juntava os marcadores de `cited` no fim da resposta e podia sugerir que uma fonte sustentava uma afirmação à qual não estava ligada. Cada citação agora fica junto da sua afirmação. Afirmação sem citação confiável é omitida, com aviso.
+  - **Resposta parcial (pendência da Sprint 3):** com o V1, o modelo devolvia `has_evidence: false` nas perguntas parcialmente respondíveis. Agora a parte com evidência é respondida, e as partes que não foram encontradas são indicadas. A resposta fixa fica para quando nenhuma parte puder ser respondida.
+- **O `ANSWER_PROMPT_V1` foi removido de `prompts.py`**, porque nenhum código o usa. O texto dele fica no histórico do Git (`prompts.py` e PRD §6.3 até o commit `d578066`). `prompts.py` guarda só a versão em uso.
+- **Saída estruturada interna:** `AnswerOutput = {claims: [{text, cited}], missing, has_evidence}`, sem descrições, como antes. `has_evidence` é o último campo, para o modelo escrever as afirmações antes de decidir. Com `has_evidence` primeiro, um rascunho do V2 ainda recusava o P2 (ver [`docs/eval.md`](docs/eval.md)). O schema não sai do `rag_service`, e o `ChatResponse` (`answer`, `has_evidence`, `sources`) não mudou.
+- **O código monta o `answer`** (`_assemble_answer`):
+  - **Limpeza:** remove de `text` e de `missing` qualquer `<trecho`/`</trecho` e qualquer marcador do modelo (`[3]`, `[1, 2]`, `[1-3]`) e normaliza os espaços. Só o código escreve marcadores.
+  - **Afirmação válida:** tem texto, `cited` não vazio e todos os índices entre 1 e n. Uma afirmação com algum índice inexistente é descartada inteira, não só o índice, porque a citação dela não é confiável. Afirmação com texto vazio é ignorada, sem contar como descartada.
+  - **Marcadores:** cada afirmação válida recebe os seus marcadores, deduplicados e em ordem crescente, antes da pontuação final: "…é de 23 dBm." vira "…é de 23 dBm [3].". Vírgula, ponto e vírgula ou dois-pontos no fim são trocados por ponto; sem pontuação final, entra um ponto. As afirmações são unidas por espaço, num parágrafo.
+  - **Partes não encontradas:** se `missing` tiver itens e houver afirmação válida, entra um novo parágrafo (`\n\n`) com "Não encontrei nos documentos selecionados: " + os itens separados por "; " + ".". O texto do item fica como o modelo escreveu (sem mudar maiúsculas, para não estragar nomes próprios e siglas).
+  - **Afirmação omitida:** se alguma afirmação foi descartada, entra o parágrafo "Parte da resposta foi omitida porque não foi possível vinculá-la às fontes.".
+- **Camada 2:** resposta fixa do RF-14 se `has_evidence` for falso ou se nenhuma afirmação for válida, mesmo que `missing` tenha itens. `sources` é a união dos índices das afirmações válidas.
+- **Textos fixos** em constantes no topo do `rag_service.py`: `NO_EVIDENCE_ANSWER`, `MISSING_PARTS_PREFIX`, `MISSING_PARTS_SEPARATOR`, `UNLINKED_CLAIMS_NOTICE` e `PARAGRAPH_SEPARATOR`.
+- **Log `query_done`:** ganhou `valid_claims`, `dropped_claims` e `missing_parts` (só contagens). O log `citation_markers_added` deixou de existir.
+- **Frontend sem mudança:** o `ChatMessage.vue` já transforma em botão qualquer `[n]` de `sources`, em qualquer posição do texto, e o `whitespace-pre-wrap` mostra os parágrafos.
+- **Avaliação:** 15/15 em três execuções seguidas, com a mesma configuração (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`). As 2 parciais passaram a responder a parte coberta e a indicar a faltante, e todo `[n]` foi conferido contra o trecho da sua afirmação. Detalhes em [`docs/eval.md`](docs/eval.md), "Rodada com `ANSWER_PROMPT_V2`".

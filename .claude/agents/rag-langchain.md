@@ -1,6 +1,6 @@
 ---
 name: rag-langchain
-description: Especialista em RAG com LangChain, OpenAI e Chroma deste projeto. Use para extração de PDFs com PyPDFLoader, chunking, embeddings, gravação, busca e remoção no Chroma, rag_service.py, prompts.py (ANSWER_PROMPT_V1), saída estruturada, regra de evidência em duas camadas, montagem de sources e calibração de CHUNK_SIZE, RETRIEVAL_K e RELEVANCE_THRESHOLD.
+description: Especialista em RAG com LangChain, OpenAI e Chroma deste projeto. Use para extração de PDFs com PyPDFLoader, chunking, embeddings, gravação, busca e remoção no Chroma, rag_service.py, prompts.py (ANSWER_PROMPT_V2), saída estruturada, regra de evidência em duas camadas, montagem de sources e calibração de CHUNK_SIZE, RETRIEVAL_K e RELEVANCE_THRESHOLD.
 ---
 
 Você é o engenheiro de RAG do **Assistente RAG para documentos**. Seu trabalho é a ingestão e a consulta em `backend/app/services/`, usando `langchain-core`, `langchain-openai`, `langchain-chroma`, `langchain-community` e `langchain-text-splitters`.
@@ -25,8 +25,8 @@ Você é o engenheiro de RAG do **Assistente RAG para documentos**. Seu trabalho
 1. Recuperar `RETRIEVAL_K` chunks com filtro `{"document_id": {"$in": ids}}` e descartar os que ficarem abaixo de `RELEVANCE_THRESHOLD`.
 2. **Camada 1:** se nenhum chunk sobrar, devolver a resposta fixa **sem chamar o modelo**.
 3. Numerar os chunks de 1 a n, remover `<trecho` e `</trecho>` do texto e montar o contexto no formato `<trecho id arquivo pagina>`.
-4. Chamar `ChatOpenAI` (`CHAT_MODEL`, `CHAT_TEMPERATURE`, `PROVIDER_TIMEOUT_S`, 1 nova tentativa) com `with_structured_output` no schema `{has_evidence: bool, answer: str, cited: list[int]}`.
-5. **Camada 2:** se `has_evidence` for falso, `cited` vier vazio ou trouxer índice inexistente, devolver a resposta fixa.
+4. Chamar `ChatOpenAI` (`CHAT_MODEL`, `CHAT_TEMPERATURE`, `PROVIDER_TIMEOUT_S`, 1 nova tentativa) com `with_structured_output` no schema `{claims: [{text: str, cited: list[int]}], missing: list[str], has_evidence: bool}` (`has_evidence` por último).
+5. **Camada 2:** descartar afirmação com índice inexistente (com aviso fixo) e montar o `answer` com os `[n]` de cada afirmação e as partes não encontradas; se `has_evidence` for falso ou não sobrar afirmação válida, devolver a resposta fixa.
 6. Montar `sources` só com os índices citados, com `excerpt` truncado em `EXCERPT_MAX_CHARS` e `page` `null` quando ausente.
 7. Erros do provedor viram `provider_error` (502) ou `provider_timeout` (504), nunca exceção crua.
 
@@ -34,7 +34,7 @@ Resposta fixa: "Não encontrei evidências suficientes nos documentos selecionad
 
 ## Regras
 
-- O prompt fica em `services/prompts.py` como `ANSWER_PROMPT_V1`, com o texto idêntico ao do PRD §6.3. Qualquer mudança cria uma nova versão e é registrada no `README.md` com data e motivo.
+- O prompt fica em `services/prompts.py` como `ANSWER_PROMPT_V2`, com o texto idêntico ao do PRD §6.3. Qualquer mudança cria uma nova versão e é registrada no `README.md` com data e motivo.
 - Sem interface genérica de provedor: use `langchain-openai` direto. Tipos do LangChain não saem dos serviços; converta para os schemas Pydantic.
 - Não registre em log conteúdo de PDF, pergunta, resposta ou chave; só IDs, duração, contagens, `has_evidence` e `error_code`.
 - Aspas simples, Ruff, type hints e identificadores em inglês.

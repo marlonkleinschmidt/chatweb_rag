@@ -39,7 +39,7 @@ project/
 | `api/` | Validar HTTP e delegar aos serviços |
 | `services/document_service.py` | Ingestão: validação, extração, divisão, embeddings, remoção |
 | `services/rag_service.py` | Consulta: recuperação, regra de evidência, chamada ao modelo |
-| `services/prompts.py` | Prompts versionados (`ANSWER_PROMPT_V1`) |
+| `services/prompts.py` | Prompts versionados (`ANSWER_PROMPT_V2`) |
 | `db.py` | Acesso ao SQLite |
 | `core/config.py` | Configuração (Pydantic Settings) |
 | `core/errors.py` | Erros com `code` estável |
