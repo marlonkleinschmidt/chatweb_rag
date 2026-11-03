@@ -1,0 +1,7 @@
+{
+  "env": {
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
+  },
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": ["context7", "playwright"]
+}
