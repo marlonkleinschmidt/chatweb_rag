@@ -10,6 +10,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .ruff_cache/
+.pytest_cache/
 
 # Node
 node_modules/

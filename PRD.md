@@ -643,13 +643,13 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** checklist da §4 100% aprovado ou com desvios documentados; medições da 5.4 registradas na §11.2.
 
-### Sprint 6 — Testes e Docker
+### Sprint 6 — Testes e Docker [x]
 
-- [ ] 6.1 Pytest: validação de upload, transições de estado, regra de evidência (com retriever e LLM falsos), endpoints de documentos.
-- [ ] 6.2 Vitest: `useDocuments` e `useChat` com `fetch` simulado.
-- [ ] 6.3 Converter as perguntas de `docs/eval.md` em teste de regressão opcional (roda só com chave configurada).
-- [ ] 6.4 Dockerfile do backend sem segredo; build estático do frontend; volume para `data/`.
-- [ ] 6.5 Documentar execução com e sem Docker.
+- [x] 6.1 Pytest: validação de upload, transições de estado, regra de evidência (com retriever e LLM falsos), endpoints de documentos.
+- [x] 6.2 Vitest: `useDocuments` e `useChat` com `fetch` simulado.
+- [x] 6.3 Converter as perguntas de `docs/eval.md` em teste de regressão opcional (roda só com chave configurada).
+- [x] 6.4 Dockerfile do backend sem segredo; build estático do frontend; volume para `data/`.
+- [x] 6.5 Documentar execução com e sem Docker.
 
 **DoD:** `pytest` e `npm run test` passam; `docker compose up` sobe a aplicação com os dados persistindo após reinício.
 

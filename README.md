@@ -35,6 +35,8 @@ cp .env.example .env
 
 ## Execução
 
+### Sem Docker
+
 São dois processos, cada um em um terminal.
 
 ```bash
@@ -49,6 +51,22 @@ npm run dev
 
 Verificação rápida: `curl http://127.0.0.1:8000/api/v1/health` retorna `{"status":"ok"}`, e a página em http://localhost:5173 mostra "Servidor: conectado".
 
+### Com Docker
+
+Pré-requisitos: Docker (com Compose) e o `backend/.env` preenchido — ele é **obrigatório** (`docker compose up` falha sem ele): a chave e os modelos entram por `env_file`, nunca na imagem.
+
+```bash
+docker compose build
+docker compose up -d     # backend em 127.0.0.1:8000; frontend em http://localhost:5173
+docker compose down      # para e remove os containers; os dados persistem
+docker compose down -v   # idem e apaga também o volume de dados
+```
+
+- **Portas só em `127.0.0.1`** (loopback), como no modo sem Docker. Dentro do container o uvicorn escuta em `0.0.0.0` (exigência do Docker para a porta publicada funcionar); a exposição ao host continua local.
+- O frontend roda como **build estático servido pelo nginx**. A URL da API (`VITE_API_BASE_URL=http://localhost:8000/api/v1`) e os limites espelhados (`VITE_MAX_DOCUMENTS_PER_QUERY`, `VITE_MAX_QUESTION_CHARS`) são definidos como build args no `docker-compose.yml` e precisam continuar iguais aos do backend.
+- Os dados ficam no **volume nomeado `rag-assistant-data`** (montado em `/app/data`), independente do `backend/data` usado no modo sem Docker: os dois modos têm dados separados, e o Docker nunca lê nem altera os dados locais.
+- `restart: unless-stopped` nos dois serviços; o backend tem healthcheck na rota `/api/v1/health`.
+
 ## Lint, formatação e tipos
 
 ```bash
@@ -62,6 +80,22 @@ npm run format:check                       # npm run format para formatar
 npm run type-check
 npm run build
 ```
+
+## Testes
+
+```bash
+# backend/ (45 testes unitários: upload, estados, regra de evidência, endpoints)
+.venv/Scripts/python -m pytest
+
+# backend/ (regressão opcional: as 15 perguntas de docs/eval.md contra a OpenAI real;
+# skip automático sem OPENAI_API_KEY/CHAT_MODEL/EMBEDDING_MODEL no .env; custo ≈ US$ 0,001)
+.venv/Scripts/python -m pytest -m regression
+
+# frontend/ (27 testes: useDocuments e useChat com fetch simulado)
+npm run test
+```
+
+O `pytest` padrão nunca chama a OpenAI: os testes de regressão ficam desmarcados por padrão (`addopts` no `backend/pytest.ini`) e usam retriever, LLM e embeddings falsos. Os testes isolam os dados em diretórios temporários e não tocam em `backend/data`.
 
 ## Operação e limitações
 
@@ -81,6 +115,16 @@ npm run build
   ```
 
 - **Restaurar:** com o backend parado, apague `backend/data/` e copie o backup inteiro no lugar dele, sem misturar com os dados atuais. Ao subir, o backend marca como `failed` (`processing_interrupted`) os documentos que ficaram em `received` ou `processing` quando ele foi parado.
+- **Com Docker**, os dados ficam no volume `rag-assistant-data` (não em `backend/data/`), e a mesma regra vale: tudo junto e com o backend parado. Backup e restauração leem/escrevem o volume diretamente:
+
+  ```bash
+  docker compose stop backend
+  # Backup (no PowerShell, ${PWD} é o diretório atual):
+  docker run --rm -v rag-assistant-data:/data -v ${PWD}:/backup alpine tar czf /backup/backup-data.tar.gz -C /data .
+  # Restaurar:
+  docker run --rm -v rag-assistant-data:/data -v ${PWD}:/backup alpine sh -c 'cd /data && tar xzf /backup/backup-data.tar.gz'
+  docker compose up -d
+  ```
 - **O `.env` não faz parte do backup de dados.** Ele guarda a `OPENAI_API_KEY`; guarde-o à parte, como segredo. Restaure com o mesmo `EMBEDDING_MODEL` usado na indexação; com outro modelo, a UI pede para reenviar os documentos.
 
 ### Retenção
@@ -484,3 +528,22 @@ Escolhas que não estavam no PRD, ou que o adaptam, registradas conforme o PRD �
 - **Log `query_done`:** ganhou `valid_claims`, `dropped_claims` e `missing_parts` (só contagens). O log `citation_markers_added` deixou de existir.
 - **Frontend sem mudança:** o `ChatMessage.vue` já transforma em botão qualquer `[n]` de `sources`, em qualquer posição do texto, e o `whitespace-pre-wrap` mostra os parágrafos.
 - **Avaliação:** 15/15 em três execuções seguidas, com a mesma configuração (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`). As 2 parciais passaram a responder a parte coberta e a indicar a faltante, e todo `[n]` foi conferido contra o trecho da sua afirmação. Detalhes em [`docs/eval.md`](docs/eval.md), "Rodada com `ANSWER_PROMPT_V2`".
+
+### Sprint 6
+
+**Testes (6.1–6.3)**
+
+- **Dependências de teste fora da §8.1, só em `requirements-dev.txt`:** `pytest==9.2.0`, `httpx==0.28.1` (exigência do `TestClient`; já era transitiva, virou pin direta) e `reportlab==5.1.0`, que gera os 3 PDFs sintéticos da avaliação dentro do próprio teste (os originais ficavam fora do repositório; sem ela, a 6.3 não teria corpus). Nenhuma entra no `requirements.txt` nem na imagem Docker.
+- **Isolamento sem `importlib.reload`:** o `conftest.py` define env vars antes de importar qualquer módulo de `app` (o `settings` é singleton criado no import) e cada teste reponta os caminhos de dados para `tmp_path`; chave e modelos são mascarados com valores falsos, para que nenhum teste unitário chegue à OpenAI. A indexação em background é neutralizada no fixture (um teste confirma o agendamento real). `backend/data` permanece intocado.
+- **Inserção de vetores nos testes:** o `add_texts` do `langchain-chroma` ignora embeddings explícitos e, sem embedding function, o chromadb baixaria o modelo default ONNX (79 MB). O helper de teste usa uma classe `Embeddings` falsa e faz upsert com vetores prontos — 100% offline.
+- **A regressão da 6.3 é opt-in:** marker `regression` com `addopts = -m "not regression"` no `backend/pytest.ini`. O `pytest` padrão roda só os 45 unitários (custo zero); `pytest -m regression` roda as 15 perguntas com a chave real lida diretamente do `.env` (skip automático se faltar chave ou modelos, que nunca são impressos) e a configuração calibrada forçada no fixture (500/200/8/0,35, temperatura 0), espelhando o avaliador original. Placar 15/15, igual à referência do `ANSWER_PROMPT_V2`.
+- **Frontend (6.2):** Vitest 5.1.0 (versão exata). Testes em `src/composables/__tests__/` exercitam o `services/api.ts` real com `fetch` simulado (`vi.stubGlobal`), cobrindo polling encadeado com fake timers, seleção/limite, `removedIds`, payload sem histórico (RF-15) e erros. O `.env.test` versionado fornece `VITE_API_BASE_URL` no modo test.
+- **`npm audit`** reporta vulnerabilidades moderate pré-existentes na cadeia de dev do ESLint; nenhuma introduzida pelo Vitest, e o `npm audit fix` traria breaking changes — mantido como está.
+- **Achado cosmético (não corrigido, decisão pendente):** o regex de limpeza de `<trecho>` no `rag_service` (`r'</?trecho'`) remove a abertura da tag mas deixa o `>` e atributos residuais no texto exibido. A defesa contra prompt injection (o texto nunca abre/fecha um bloco de contexto) continua válida; o comportamento atual está documentado em `test_evidence_rule.py`.
+
+**Docker (6.4 e 6.5)**
+
+- **Volume nomeado `rag-assistant-data`** montado em `/app/data`, e não bind mount: o `backend/data` local pode ter dados reais que o Docker não deve montar nem alterar; os dois modos de execução ficam com dados independentes. Nome explícito para backup/restauração não dependerem do nome do projeto.
+- **Dentro do container o uvicorn escuta em `0.0.0.0`** (exigência do Docker para a porta publicada funcionar); a exposição ao host continua só loopback (`127.0.0.1:8000:8000` e `127.0.0.1:5173:80`), como manda o PRD.
+- **Sem proxy nginx para a API:** o `api.ts` exige `VITE_API_BASE_URL` não vazio (senão `config_missing`), então o bundle aponta para `http://localhost:8000/api/v1` via build arg; o browser usa `http://localhost:5173`, origem aceita pelo `CORS_ORIGINS` padrão. `VITE_MAX_DOCUMENTS_PER_QUERY` e `VITE_MAX_QUESTION_CHARS` são build args no compose e precisam continuar iguais aos do backend.
+- **`backend/.env` obrigatório para `docker compose up`** (falha rápida intencional via `env_file`); nenhum segredo entra na imagem. O `CMD` do Dockerfile usa aspas duplas (exec form JSON) — única exceção à regra de aspas simples, justificada no próprio arquivo.

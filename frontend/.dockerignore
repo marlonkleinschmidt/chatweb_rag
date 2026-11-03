@@ -1,0 +1,11 @@
+# Local dependencies and build output are rebuilt inside the container.
+node_modules/
+dist/
+
+# Build-time config comes from Docker build args, never from a local .env
+# (which may point at the dev server URL).
+.env
+
+# Build inputs already consumed by the Dockerfile.
+Dockerfile
+.dockerignore

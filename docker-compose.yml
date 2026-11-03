@@ -1,0 +1,54 @@
+# Local orchestration for the RAG assistant (PRD §10, task 6.4).
+# Usage:
+#   docker compose build
+#   docker compose up -d
+#   docker compose down            (add -v to also delete the data volume)
+#
+# Both ports are published on the loopback interface only, honoring the PRD
+# rule that nothing is exposed to the network/internet.
+
+services:
+  backend:
+    build: ./backend
+    # Secrets and configuration come from the local .env (never baked into
+    # the image). It must exist before `docker compose up`.
+    env_file: backend/.env
+    ports:
+      # Loopback-only publish; inside the container uvicorn binds 0.0.0.0.
+      - '127.0.0.1:8000:8000'
+    volumes:
+      # Named volume (not a bind mount): the host backend/data/ may hold real
+      # data from the non-Docker workflow that must not be mounted or altered,
+      # and a named volume is owned by Docker, so containers cannot write
+      # anywhere else on the host. Backups read the volume (see README).
+      - rag_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      # python:3.12-slim has no curl/wget; use the interpreter itself.
+      test: ['CMD', 'python', '-c', 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=5)']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The browser reaches the backend through the loopback-published
+        # port, so the bundle must call it there (CORS allows this origin).
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+        # Mirror of the backend limits (must stay equal to backend/.env).
+        VITE_MAX_DOCUMENTS_PER_QUERY: 10
+        VITE_MAX_QUESTION_CHARS: 2000
+    ports:
+      # nginx serves on 80 inside the container; published on loopback only,
+      # on the same port the CORS origin expects (http://localhost:5173).
+      - '127.0.0.1:5173:80'
+    restart: unless-stopped
+
+volumes:
+  rag_data:
+    # Explicit name so backup/restore commands do not depend on the compose
+    # project name derived from the directory.
+    name: rag-assistant-data

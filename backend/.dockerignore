@@ -1,0 +1,22 @@
+# Secrets never enter the image (injected at runtime via compose env_file).
+.env
+
+# Local runtime data (persisted in a named volume instead, not in the image).
+data/
+
+# Local tooling and caches.
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+
+# Tests do not ship in the runtime image (Sprint 6 runs them outside Docker).
+tests/
+requirements-dev.txt
+
+# Build inputs that are already consumed by the Dockerfile.
+Dockerfile
+.dockerignore
+.env.example
