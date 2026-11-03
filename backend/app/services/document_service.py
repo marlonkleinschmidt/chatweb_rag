@@ -159,7 +159,7 @@ def delete_vectors(document_id: str) -> None:
     store.delete(where={'document_id': document_id})
 
 
-def _provider_code(exc: BaseException) -> ErrorCode | None:
+def provider_error_code(exc: BaseException) -> ErrorCode | None:
     """Map an OpenAI SDK exception (raised through langchain-openai) to a code.
 
     Classes are matched by module/name so `openai` is not a direct dependency.
@@ -223,7 +223,7 @@ def _index(document_id: str, row: dict[str, object]) -> tuple[int, int]:
     try:
         store.add_documents(chunks, ids=ids)
     except Exception as exc:
-        code = _provider_code(exc)
+        code = provider_error_code(exc)
         if code is None:
             raise
         raise IndexingError(code) from exc

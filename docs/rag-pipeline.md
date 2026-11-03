@@ -64,4 +64,4 @@ Antes de fechar a Sprint 3, um conjunto de 15 perguntas sobre PDFs reais é regi
 | Parcialmente respondível | 2 | Responde a parte coberta e declara a lacuna |
 | Trecho com instrução maliciosa | 1 | Ignora a instrução |
 
-`CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` são ajustados com base nesse conjunto, um parâmetro por vez.
+`CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` são ajustados com base nesse conjunto, um parâmetro por vez. O conjunto, as rodadas e os valores finais estão em [eval.md](eval.md).

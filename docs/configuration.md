@@ -2,7 +2,7 @@
 
 Toda configuração vem do ambiente e é lida por `app/core/config.py`. Mudar um valor não exige alteração de código. Segredos ficam só no `.env` (fora do Git); o `.env.example` traz todas as variáveis com valores fictícios.
 
-Valores marcados "a validar" são revistos com PDFs reais na Sprint 3.
+Os valores marcados "validado na Sprint 3" foram calibrados com o conjunto de [eval.md](eval.md) (PDFs sintéticos; revisar com PDFs reais antes de produção).
 
 | Decisão | Default | Variável |
 | --- | --- | --- |
@@ -11,9 +11,9 @@ Valores marcados "a validar" são revistos com PDFs reais na Sprint 3.
 | Intervalo de polling da UI | 2 s enquanto houver documento `received`/`processing` | `VITE_POLL_INTERVAL_MS` |
 | Tamanho máximo do PDF | 20 MB | `MAX_UPLOAD_MB` |
 | Máximo de páginas por PDF | 500 | `MAX_PDF_PAGES` |
-| Chunk / overlap | 1.000 / 200 caracteres (a validar) | `CHUNK_SIZE`, `CHUNK_OVERLAP` |
-| Chunks recuperados (top-k) | 4 no total, entre todos os documentos selecionados (a validar) | `RETRIEVAL_K` |
-| Limiar mínimo de relevância | 0,30 no score normalizado 0–1 (a validar) | `RELEVANCE_THRESHOLD` |
+| Chunk / overlap | 500 / 200 caracteres (validado na Sprint 3) | `CHUNK_SIZE`, `CHUNK_OVERLAP` |
+| Chunks recuperados (top-k) | 8 no total, entre todos os documentos selecionados (validado na Sprint 3) | `RETRIEVAL_K` |
+| Limiar mínimo de relevância | 0,35 no score normalizado 0–1 (validado na Sprint 3) | `RELEVANCE_THRESHOLD` |
 | Modelo de chat / embeddings | Sem default no código; definir no `.env` | `CHAT_MODEL`, `EMBEDDING_MODEL` |
 | Temperatura | 0 | `CHAT_TEMPERATURE` |
 | Timeout do provedor | 60 s, 1 nova tentativa em erro transitório | `PROVIDER_TIMEOUT_S` |

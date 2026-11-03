@@ -15,6 +15,7 @@ Guidelines e padrões do **Assistente RAG para documentos**: uma aplicação web
 | [configuration.md](configuration.md) | Variáveis de ambiente e valores padrão |
 | [api.md](api.md) | Endpoints, schemas, estados do documento e erros |
 | [rag-pipeline.md](rag-pipeline.md) | Ingestão, consulta, regra de evidência e prompt |
+| [eval.md](eval.md) | Conjunto de avaliação do RAG e calibração dos parâmetros (Sprint 3) |
 | [security.md](security.md) | Segredos, logs, privacidade e rede |
 | [design-system.md](design-system.md) | Cores, tipografia, componentes, acessibilidade e responsividade |
 

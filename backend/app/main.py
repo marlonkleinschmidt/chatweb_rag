@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
-from app.api import routes_documents
+from app.api import routes_chat, routes_documents
 from app.core.config import settings
 from app.core.errors import register_error_handlers
 from app.services import document_service
@@ -52,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(routes_documents.router, prefix=API_PREFIX)
+app.include_router(routes_chat.router, prefix=API_PREFIX)
 
 
 @app.get(f'{API_PREFIX}/health')

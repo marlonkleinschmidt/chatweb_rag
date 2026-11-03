@@ -28,14 +28,14 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** com `curl`, um PDF real chega a `ready` com `chunk_count` > 0; um PDF escaneado chega a `failed / pdf_no_text`; um `.txt` renomeado para `.pdf` recebe `422 file_not_pdf`; após `DELETE`, a coleção Chroma não tem vetores daquele ID.
 
-### Sprint 3 — Consulta RAG
+### Sprint 3 — Consulta RAG [x]
 
-- [ ] 3.1 Implementar recuperação com filtro e limiar (§6.2, passos 2–4).
-- [ ] 3.2 Implementar `ANSWER_PROMPT_V1` e saída estruturada (§6.3).
-- [ ] 3.3 Implementar validação pós-modelo e montagem de `sources` (§6.2, passos 7–8).
-- [ ] 3.4 Implementar `POST /chat/query` com `409`, `502` e `504`.
-- [ ] 3.5 Montar o conjunto de avaliação e registrar em `docs/eval.md` (§6.4).
-- [ ] 3.6 Ajustar `CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` e registrar os valores finais na §3.
+- [x] 3.1 Implementar recuperação com filtro e limiar (§6.2, passos 2–4).
+- [x] 3.2 Implementar `ANSWER_PROMPT_V1` e saída estruturada (§6.3).
+- [x] 3.3 Implementar validação pós-modelo e montagem de `sources` (§6.2, passos 7–8).
+- [x] 3.4 Implementar `POST /chat/query` com `409`, `502` e `504`.
+- [x] 3.5 Montar o conjunto de avaliação e registrar em `docs/eval.md` (§6.4).
+- [x] 3.6 Ajustar `CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` e registrar os valores finais na §3.
 
 **DoD:** no conjunto de avaliação, as 4 perguntas fora do tema retornam a mensagem fixa, a pergunta com instrução maliciosa é ignorada e ao menos 4 das 5 perguntas de página única citam a página certa.
 

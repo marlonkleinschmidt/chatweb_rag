@@ -29,11 +29,11 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(default=20, gt=0)
     max_pdf_pages: int = Field(default=500, gt=0)
 
-    # RAG
-    chunk_size: int = Field(default=1000, gt=0)
+    # RAG (validated in Sprint 3, see docs/eval.md)
+    chunk_size: int = Field(default=500, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
-    retrieval_k: int = Field(default=4, gt=0)
-    relevance_threshold: float = Field(default=0.30, ge=0.0, le=1.0)
+    retrieval_k: int = Field(default=8, gt=0)
+    relevance_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
 
     # Chat limits
     max_question_chars: int = Field(default=2000, ge=MIN_QUESTION_CHARS)

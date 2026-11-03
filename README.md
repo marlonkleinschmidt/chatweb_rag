@@ -141,3 +141,38 @@ Escolhas que não estavam no PRD, ou que o adaptam, registradas conforme o PRD �
 - **`DELETE` de documento em `received` também retorna `409 document_processing`**, como em `processing`. Pelo diagrama da §5.2, só `ready` e `failed` podem ser removidos, e um documento em `received` está na fila de indexação. Como `ready` e `failed` são estados finais, a verificação não concorre com a indexação.
 - **Em falha parcial, o registro não é alterado.** A resposta é `500 delete_partial`, e o log registra o passo que falhou (`vectors`, `file` ou `record`). O registro continua com o `status` e o `error_code` que já tinha, para não perder, por exemplo, um `pdf_no_text`. Um novo `DELETE` repete os três passos.
 - **`DELETE` de um documento já removido retorna `404`.** A idempotência vale para os passos depois de um `delete_partial`.
+
+### Sprint 3
+
+**Consulta RAG (`rag_service.answer_question`)**
+
+- **Prompt `ANSWER_PROMPT_V1`** (3 de novembro de 2026, versão inicial): texto idêntico ao da §6.3, em `services/prompts.py`. A mensagem do usuário (`Pergunta: {question}`) fica na constante `QUESTION_PROMPT_V1`, no mesmo arquivo.
+- **Erros da consulta usam o `AppError` existente**: `409 document_not_ready` (documento inexistente ou fora de `ready`, verificado antes de qualquer chamada à OpenAI), `502 provider_error` e `504 provider_timeout`. A rota só precisa chamar o serviço; o handler global monta o envelope.
+- **Falta de `OPENAI_API_KEY`, `CHAT_MODEL` ou `EMBEDDING_MODEL` na consulta vira `502 provider_error`.**
+- **Saída estruturada com `method='json_schema'`** (padrão do `langchain-openai` 1.7.3). O schema `AnswerOutput` não tem descrições, para não mandar ao modelo texto além do prompt da §6.3. Resposta que não pode ser lida como o schema (ou recusada pelo modelo) também vira `502 provider_error`.
+- **O chat usa timeout `PROVIDER_TIMEOUT_S` e 1 nova tentativa** (`max_retries=1`), como os embeddings.
+- **IDs repetidos em `document_ids` são considerados uma vez só.**
+- **O score é o do `langchain-chroma` para cosseno** (`1 − distância`), comparado com `>= RELEVANCE_THRESHOLD`.
+- **Limpeza dos trechos:** `<trecho` e `</trecho` são removidos sem diferenciar maiúsculas, repetindo até não sobrar nenhum (a remoção pode formar uma nova ocorrência). O nome do arquivo vai no atributo `arquivo` com escape de HTML (`"`, `<`, `>`, `&`). Sem página, `pagina=""`.
+- **Camada 2 também devolve a resposta fixa se `answer` vier vazio com `has_evidence: true`.** Os índices de `cited` são deduplicados e ordenados; `sources[].index` é o número do trecho no prompt, o mesmo do marcador `[n]`.
+- **`excerpt` é o texto original do chunk** (sem a limpeza das tags), sem espaços nas pontas e cortado nos primeiros `EXCERPT_MAX_CHARS` caracteres, sem reticências.
+- **Log da consulta (`query_done`)**: IDs dos documentos, número de chunks acima do limiar, se o modelo foi chamado, `has_evidence` do modelo e o final, número de citações e duração. Nunca a pergunta, os trechos ou a resposta.
+
+**Rota `POST /api/v1/chat/query`**
+
+- **Rota síncrona (`def`)**: `answer_question` bloqueia nas chamadas à OpenAI, então o FastAPI a executa no threadpool, sem travar o event loop.
+- **Erros de validação de `document_ids` viram `422 invalid_request`**: lista vazia, mais de `MAX_DOCUMENTS_PER_QUERY` itens ou item que não é UUID. A §5.3 não tem código para esse caso, e a UI já impede essas seleções. Um UUID válido que não existe retorna `409 document_not_ready`, como manda a §5.1.
+
+**Avaliação e calibração (3.5 e 3.6)**
+
+- **`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`** (3 de novembro de 2026), no lugar de 1000 / 4 / 0,30. Foram calibrados com o conjunto de 15 perguntas de [`docs/eval.md`](docs/eval.md), um parâmetro por vez.
+  - Chunks de 500 recuperam o trecho exato com score maior.
+  - K=8 é o menor valor com folga para a pergunta multi-página M1 (com K=6 ela passa no limite). Leva ao modelo cerca de 4.000 caracteres, o mesmo volume do default original.
+  - 0,35 fica no meio do intervalo entre as perguntas sem relação com os documentos (score máximo 0,25) e o trecho relevante de menor score (0,454).
+  - `CHUNK_OVERLAP` ficou em 200: não estava no escopo da calibração.
+- **PDFs sintéticos na avaliação.** O PRD §6.4 pede PDFs reais, mas o repositório não tem nenhum. Foram gerados três PDFs fictícios em pt-BR (manual de roteador, política de viagens e o PDF com instrução maliciosa), com o gerador e o avaliador fora do repositório. Os valores devem ser revistos com PDFs reais antes de produção.
+- **Documentos indexados antes dessa mudança mantêm os chunks de 1000.** O `CHUNK_SIZE` só vale para novas indexações. Para usar o novo valor, remova o documento e envie de novo.
+- **Pendências para o usuário (o prompt e a regra de evidência não foram alterados):**
+  - Em 56% das respostas da configuração final, o `answer` não traz `[n]`: são as respostas de uma frase só. As fontes continuam corretas em `sources`.
+  - As 2 perguntas parcialmente respondíveis recebem a resposta fixa, porque o modelo devolve `has_evidence: false`.
+  - Detalhes e opções em [`docs/eval.md`](docs/eval.md), seção "Achados".
