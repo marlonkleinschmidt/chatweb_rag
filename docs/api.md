@@ -7,8 +7,8 @@ Todos os endpoints ficam sob `/api/v1`, trocam JSON (exceto o upload multipart) 
 | Método | Caminho | Sucesso | Erros esperados |
 | --- | --- | --- | --- |
 | GET | `/health` | `200 {"status": "ok"}` | — |
-| POST | `/documents` (campo `file`) | `202` + `Document` | `413`, `422` |
-| GET | `/documents` | `200 {"items": [Document]}` | — |
+| POST | `/documents` (campo `file`) | `202` + `Document` + `warning` | `413`, `422` |
+| GET | `/documents` | `200 {"items": [Document], "embedding_model_changed": bool}` | — |
 | GET | `/documents/{document_id}` | `200` + `Document` | `404` |
 | DELETE | `/documents/{document_id}` | `204` | `404`, `409`, `500` |
 | POST | `/chat/query` | `200` + `ChatResponse` | `422`, `409`, `502`, `504` |
@@ -64,7 +64,8 @@ Se algum `document_id` não existir ou não estiver `ready`, a API retorna `409 
 
 - Um PDF por vez, via multipart.
 - Rejeitar: arquivo vazio, extensão diferente de `.pdf`, assinatura inicial diferente de `%PDF-`, tamanho acima de `MAX_UPLOAD_MB`, PDF criptografado, páginas acima de `MAX_PDF_PAGES`.
-- Duplicados (mesmo SHA-256) são aceitos como documentos distintos, com o aviso "Este arquivo já foi enviado."
+- Duplicados (mesmo SHA-256) são aceitos como documentos distintos, com o aviso "Este arquivo já foi enviado." O aviso vem no campo `warning` da resposta do upload (`null` quando não é duplicado).
+- `GET /documents` retorna `embedding_model_changed: true` enquanto existir vetor gerado com outro `EMBEDDING_MODEL`. A UI mostra "O modelo de embeddings mudou. Remova e envie os documentos novamente." (texto em `locales/pt-BR.ts`).
 
 ## Estados do documento
 

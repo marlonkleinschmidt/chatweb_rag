@@ -22,6 +22,7 @@ class ErrorCode(StrEnum):
     PDF_ENCRYPTED = 'pdf_encrypted'
     PDF_TOO_MANY_PAGES = 'pdf_too_many_pages'
     PDF_NO_TEXT = 'pdf_no_text'
+    PROCESSING_INTERRUPTED = 'processing_interrupted'
     DOCUMENT_NOT_FOUND = 'document_not_found'
     DOCUMENT_PROCESSING = 'document_processing'
     DOCUMENT_NOT_READY = 'document_not_ready'
@@ -46,6 +47,9 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
         'Este PDF não contém texto pesquisável. '
         'PDFs digitalizados ainda não são suportados.'
     ),
+    ErrorCode.PROCESSING_INTERRUPTED: (
+        'Processamento interrompido. Remova e envie novamente.'
+    ),
     ErrorCode.DOCUMENT_NOT_FOUND: 'Documento não encontrado.',
     ErrorCode.DOCUMENT_PROCESSING: (
         'Aguarde o fim do processamento para remover este documento.'
@@ -67,7 +71,8 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.METHOD_NOT_ALLOWED: 'Método não permitido.',
 }
 
-# `pdf_no_text` is only a document state, never an HTTP response.
+# `pdf_no_text` and `processing_interrupted` are only stored on failed documents,
+# never returned as HTTP responses.
 ERROR_STATUS: dict[ErrorCode, int] = {
     ErrorCode.FILE_EMPTY: 422,
     ErrorCode.FILE_NOT_PDF: 422,

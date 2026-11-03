@@ -85,5 +85,5 @@ O nome original do arquivo nunca compõe caminho; vai só para o SQLite.
 - **Reinício:** documentos em `received` ou `processing` passam a `failed` no startup, com a mensagem "Processamento interrompido. Remova e envie novamente."
 - **Remoção** (ordem fixa): vetores → arquivo → registro. Se um passo falhar, o registro fica com `delete_partial` e um novo `DELETE` repete todos os passos (cada um é idempotente).
 - **IDs de vetor determinísticos:** `{document_id}:{chunk_index}`.
-- **Troca de modelo de embedding:** vetores de outro `EMBEDDING_MODEL` são incompatíveis. No startup, o backend registra aviso e a UI orienta: "O modelo de embeddings mudou. Remova e envie os documentos novamente."
+- **Troca de modelo de embedding:** vetores de outro `EMBEDDING_MODEL` são incompatíveis. No startup, o backend registra aviso no log; `GET /documents` retorna `embedding_model_changed: true` e a UI orienta: "O modelo de embeddings mudou. Remova e envie os documentos novamente."
 - **Backup:** copiar a pasta `data/` inteira com o backend parado.

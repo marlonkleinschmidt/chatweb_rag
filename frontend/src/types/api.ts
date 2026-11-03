@@ -14,8 +14,15 @@ export interface Document {
   updated_at: string
 }
 
+// `POST /documents` only: `warning` is set when the same file was already sent (RF-01).
+export interface DocumentUploadResponse extends Document {
+  warning: string | null
+}
+
 export interface DocumentListResponse {
   items: Document[]
+  // True when stored vectors were made with another embedding model (PRD §8.3).
+  embedding_model_changed: boolean
 }
 
 export interface ChatRequest {

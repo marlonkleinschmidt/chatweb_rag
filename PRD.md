@@ -22,6 +22,8 @@ A v2.1 troca escolhas abertas ("se necessário", "quando aplicável") por decis�
 | 12 | Tarefas sem critério de conclusão; tarefas humanas misturadas a tarefas de código | Definition of Done por sprint e marcação `[humano]` (§10) |
 | 13 | Sem orientação para agentes de código | Nova seção de instruções e limites de escopo (§1) |
 
+**Ajustes durante a implementação (Sprint 2, aprovados pelo usuário):** campo `warning` na resposta do upload (RF-01) e campo `embedding_model_changed` na lista de documentos (§8.3). Ver §5.1.
+
 ## 1. Instruções para agentes de implementação
 
 Esta seção é o contrato para qualquer agente de código (ou pessoa) que implemente este PRD. Em caso de conflito, a ordem de precedência é: §1 → §3 (decisões padrão) → requisitos (§4–§7) → demais seções.
@@ -113,7 +115,7 @@ Cada requisito tem um critério de verificação manual ("Verificar"), usado nas
 
 | ID | Requisito | Verificar |
 | --- | --- | --- |
-| RF-01 Upload | Enviar um PDF por vez via multipart. Duplicados (mesmo SHA-256) são aceitos como documentos distintos no MVP, com aviso "Este arquivo já foi enviado." | PDF válido retorna `202` e aparece na lista como `Recebido` ou `Processando` |
+| RF-01 Upload | Enviar um PDF por vez via multipart. Duplicados (mesmo SHA-256) são aceitos como documentos distintos no MVP, com aviso "Este arquivo já foi enviado." no campo `warning` da resposta (§5.1) | PDF válido retorna `202` e aparece na lista como `Recebido` ou `Processando` |
 | RF-02 Validação | Rejeitar: arquivo vazio, extensão diferente de `.pdf`, assinatura inicial diferente de `%PDF-`, tamanho acima de `MAX_UPLOAD_MB`, PDF criptografado | Cada caso retorna `422` com `code` próprio (§5.3) e mensagem pt-BR |
 | RF-03 Indexação | Extrair texto por página, dividir, gerar embeddings em lote e gravar no Chroma com metadados `document_id`, `filename`, `page` (base 1), `chunk_index`, `created_at`, `updated_at` | Após `ready`, `chunk_count` > 0 e igual ao número de vetores com aquele `document_id` |
 | RF-04 Estado | Seguir a máquina de estados da §5.2 | Nenhuma transição fora do diagrama é possível |
@@ -183,8 +185,8 @@ Todos os endpoints ficam sob `/api/v1`, trocam JSON (exceto o upload multipart) 
 | Método | Caminho | Sucesso | Erros esperados |
 | --- | --- | --- | --- |
 | GET | `/health` | `200 {"status": "ok"}` | — |
-| POST | `/documents` (campo `file`) | `202` + `Document` | `413`, `422` |
-| GET | `/documents` | `200 {"items": [Document]}` | — |
+| POST | `/documents` (campo `file`) | `202` + `Document` + `warning` | `413`, `422` |
+| GET | `/documents` | `200 {"items": [Document], "embedding_model_changed": bool}` | — |
 | GET | `/documents/{document_id}` | `200` + `Document` | `404` |
 | DELETE | `/documents/{document_id}` | `204` | `404`, `409`, `500` |
 | POST | `/chat/query` | `200` + `ChatResponse` | `422`, `409`, `502`, `504` |
@@ -206,6 +208,10 @@ Todos os endpoints ficam sob `/api/v1`, trocam JSON (exceto o upload multipart) 
 ```
 
 `id` é UUID v4. `storage_path` nunca é retornado.
+
+A resposta do upload (`DocumentUploadResponse`) é um `Document` com o campo extra `warning`: "Este arquivo já foi enviado." quando já existe documento com o mesmo SHA-256 (RF-01), ou `null`. As respostas de `GET` não têm esse campo.
+
+A lista (`DocumentListResponse`) traz `embedding_model_changed`: `true` quando existe vetor gerado com `EMBEDDING_MODEL` diferente do configurado (§8.3). A API devolve só o indicador; o texto do aviso fica em `locales/pt-BR.ts`.
 
 **`ChatRequest`**
 
@@ -441,7 +447,7 @@ Metadados de cada vetor no Chroma: `document_id`, `filename`, `page`, `chunk_ind
 ### 8.3 Regras de integridade
 
 - **Remoção** (ordem fixa): apagar vetores por `document_id` → apagar arquivo → apagar registro. Se um passo falhar, o registro permanece com `delete_partial` e um novo `DELETE` repete todos os passos (cada um é idempotente).
-- **Troca de modelo de embedding:** vetores gerados com outro `EMBEDDING_MODEL` são incompatíveis. Na inicialização, se existir vetor com `embedding_model` diferente do configurado, o backend registra aviso e a UI orienta: "O modelo de embeddings mudou. Remova e envie os documentos novamente."
+- **Troca de modelo de embedding:** vetores gerados com outro `EMBEDDING_MODEL` são incompatíveis. Na inicialização, se existir vetor com `embedding_model` diferente do configurado, o backend registra aviso no log. Enquanto existir vetor assim, `GET /documents` retorna `embedding_model_changed: true` e a UI orienta: "O modelo de embeddings mudou. Remova e envie os documentos novamente."
 - **Backup:** copiar a pasta `data/` inteira com o backend parado.
 
 ### 8.4 Estrutura de diretórios

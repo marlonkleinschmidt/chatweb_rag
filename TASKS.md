@@ -16,15 +16,15 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** `git grep -i 'sk-'` não encontra chave; `GET /api/v1/health` retorna `ok`; frontend exibe o status do health; lint passa nos dois lados.
 
-### Sprint 2 — Catálogo e ingestão
+### Sprint 2 — Catálogo e ingestão [x]
 
-- [ ] 2.1 Criar `db.py` com a tabela da §8.2 e funções `create`, `get`, `list`, `update_status`, `delete`.
-- [ ] 2.2 Implementar `POST /documents` com validações de RF-02 e retorno `202`.
-- [ ] 2.3 Implementar indexação em background (§6.1), com lock de execução sequencial.
-- [ ] 2.4 Implementar RF-08 (PDF sem texto) e mapeamento de falhas para `error_code`.
-- [ ] 2.5 Marcar `received`/`processing` órfãos como `failed` no startup.
-- [ ] 2.6 Implementar `GET /documents` e `GET /documents/{id}`.
-- [ ] 2.7 Implementar `DELETE` com a ordem e idempotência da §8.3 e `409` durante processamento.
+- [x] 2.1 Criar `db.py` com a tabela da §8.2 e funções `create`, `get`, `list`, `update_status`, `delete`.
+- [x] 2.2 Implementar `POST /documents` com validações de RF-02 e retorno `202`.
+- [x] 2.3 Implementar indexação em background (§6.1), com lock de execução sequencial.
+- [x] 2.4 Implementar RF-08 (PDF sem texto) e mapeamento de falhas para `error_code`.
+- [x] 2.5 Marcar `received`/`processing` órfãos como `failed` no startup.
+- [x] 2.6 Implementar `GET /documents` e `GET /documents/{id}`.
+- [x] 2.7 Implementar `DELETE` com a ordem e idempotência da §8.3 e `409` durante processamento.
 
 **DoD:** com `curl`, um PDF real chega a `ready` com `chunk_count` > 0; um PDF escaneado chega a `failed / pdf_no_text`; um `.txt` renomeado para `.pdf` recebe `422 file_not_pdf`; após `DELETE`, a coleção Chroma não tem vetores daquele ID.
 

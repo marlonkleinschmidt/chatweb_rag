@@ -21,5 +21,13 @@ class Document(BaseModel):
     updated_at: datetime
 
 
+class DocumentUploadResponse(Document):
+    """`POST /documents` response: a `Document` plus the RF-01 duplicate warning."""
+
+    warning: str | None = None
+
+
 class DocumentListResponse(BaseModel):
     items: list[Document]
+    # PRD §8.3: some vectors were made with another `EMBEDDING_MODEL`.
+    embedding_model_changed: bool = False
