@@ -24,6 +24,8 @@ A v2.1 troca escolhas abertas ("se necessário", "quando aplicável") por decis�
 
 **Ajustes durante a implementação (Sprint 2, aprovados pelo usuário):** campo `warning` na resposta do upload (RF-01) e campo `embedding_model_changed` na lista de documentos (§8.3). Ver §5.1.
 
+**Ajustes durante a implementação (Sprint 4, pedidos pelo usuário):** nova paleta de cores `app-*` (§9.1) e escolha entre tema claro e escuro (RF-19, §9.4).
+
 ## 1. Instruções para agentes de implementação
 
 Esta seção é o contrato para qualquer agente de código (ou pessoa) que implemente este PRD. Em caso de conflito, a ordem de precedência é: §1 → §3 (decisões padrão) → requisitos (§4–§7) → demais seções.
@@ -57,7 +59,7 @@ O MVP é uma aplicação web local onde o usuário envia PDFs, faz perguntas e r
 
 **Público:** uma pessoa ou equipe pequena, em máquina ou rede controlada, consultando dezenas (não milhares) de PDFs com texto digital.
 
-**Princípios:** simplicidade antes de generalidade; código em inglês, interface em pt-BR; tema escuro consistente; aspas simples; PEP 8; testes automatizados e Docker só na Sprint 6.
+**Princípios:** simplicidade antes de generalidade; código em inglês, interface em pt-BR; temas claro e escuro consistentes, escolhidos pelo usuário; aspas simples; PEP 8; testes automatizados e Docker só na Sprint 6.
 
 ### 2.1 Objetivos do MVP
 
@@ -141,6 +143,12 @@ Cada requisito tem um critério de verificação manual ("Verificar"), usado nas
 
 - **RF-17:** todo texto visível (rótulos, validações, mensagens, datas, `aria-label`) em pt-BR, incluindo mensagens vindas da API.
 - **RF-18:** arquivos, módulos, classes, variáveis, funções, schemas, rotas e comentários técnicos em inglês.
+
+### 4.3.1 Tema
+
+| ID | Requisito | Verificar |
+| --- | --- | --- |
+| RF-19 Tema claro/escuro | O usuário escolhe entre tema claro e escuro por um controle no cabeçalho. Na primeira visita, o tema segue `prefers-color-scheme` do sistema; sem preferência, vale o escuro. A escolha fica salva no navegador e é mantida ao recarregar. Regras na §9.4 | Alternar muda toda a interface sem recarregar e sem perder o chat; a escolha persiste após recarregar; não há "flash" do outro tema ao abrir; os dois temas passam no WCAG AA (§7.5) |
 
 ### 4.4 Fluxo de UX
 
@@ -315,7 +323,7 @@ O pipeline fica inteiro em `services/rag_service.py` (consulta) e `services/docu
 5. Numerar os chunks restantes de 1 a n e montar o prompt (§6.3).
 6. Chamar o modelo com saída estruturada (`with_structured_output`) no schema `{has_evidence: bool, answer: str, cited: list[int]}`.
 7. **Camada 2 — validação pós-modelo:** se `has_evidence` for falso, `cited` vier vazio ou contiver índice inexistente, retornar a resposta fixa de RF-14.
-8. Montar `sources` só com os índices citados, truncando `excerpt` em `EXCERPT_MAX_CHARS`.
+8. Montar `sources` só com os índices citados, truncando `excerpt` em `EXCERPT_MAX_CHARS`. Se o `answer` não tiver nenhum marcador `[n]` de um índice citado, o código acrescenta os marcadores de `cited` (ex.: `[1][3]`) ao fim do texto, antes da pontuação final.
 
 ### 6.3 Prompt do sistema (versão 1)
 
@@ -484,28 +492,32 @@ O arquivo `locales/pt-BR.ts` é um objeto simples de strings, sem biblioteca de 
 
 ## 9. Design system
 
-Tema escuro único, orientado à leitura, com tokens semânticos no `tailwind.config` e componentes base compartilhados. Nenhuma cor hexadecimal aparece fora da configuração do tema.
+Dois temas, claro e escuro, orientados à leitura, com tokens semânticos na configuração do tema do Tailwind e componentes base compartilhados. Cada token semântico tem um valor por tema (§9.4). Nenhuma cor hexadecimal aparece fora da configuração do tema.
 
 ### 9.1 Tokens de cor
 
-| Token | Valor | Uso | Restrição |
-| --- | --- | --- | --- |
-| `canvas` | `#0B1020` | Fundo global | — |
-| `surface` | `#121A2B` | Painéis, sidebar, cards | — |
-| `surface-raised` | `#1A2540` | Inputs, menus, modal | Não usar `text-muted` sobre ele |
-| `border` | `#293653` | Bordas e divisores | Decorativo; bordas de controle usam `text-muted` |
-| `text-primary` | `#F4F7FC` | Texto principal | — |
-| `text-secondary` | `#A8B4CC` | Texto secundário | — |
-| `text-muted` | `#75829D` | Metadados | Só sobre `canvas`/`surface` |
-| `primary` | `#7C6CF2` | Ação principal, anel de foco | Texto branco sobre ele fica abaixo de 4,5:1 |
-| `primary-hover` | `#9285FF` | Hover | — |
-| `accent` | `#35C8D0` | Destaques, marcadores `[n]` | — |
-| `success` | `#42C99A` | Pronto | — |
-| `warning` | `#F4B860` | Processando | — |
-| `danger` | `#F17383` | Falhou, remoção | — |
-| `gradient-brand` | `#6757E8` → `#27B8C7` | Botão primário, detalhes pontuais | Ver nota de contraste |
+| Token | Paleta | Hex | Uso | Restrição / contraste medido (WCAG 2.x) |
+| --- | --- | --- | --- | --- |
+| `canvas` | `app-gray-850` | `#1F2729` | Fundo global | — |
+| `surface` | `app-gray-900` | `#121214` | Painéis, sidebar, cards, header | Separa melhor os painéis do fundo que `app-gray-800` (1,23:1 contra 1,05:1) |
+| `surface-raised` | `app-gray-700` | `#3A3A40` | Inputs, bolha do usuário, modal | — |
+| `border` | `app-gray-600` | `#3D3D44` | Bordas e divisores; fundo de hover de `secondary`/`ghost` | Decorativo; bordas de controle usam `control-border` |
+| `control-border` | `app-gray-200` | `#A8A8B3` | Borda de campos e do botão `secondary` | ≥ 3:1: 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
+| `focus` | `app-purple-400` | `#A78BFA` | Anel de foco | ≥ 3:1: 5,59 (canvas), 6,88 (surface), 4,15 (surface-raised) |
+| `text-primary` | `white` | `#FFFFFF` | Texto principal | 15,21 (canvas), 18,71 (surface), 11,30 (surface-raised), 10,77 (border) |
+| `text-secondary` | `app-gray-200` | `#A8A8B3` | Texto secundário, metadados, placeholder | 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
+| `primary` | `app-purple-500` | `#8257E6` | Fundo do botão primário; seleção e aba ativa | `text-primary` sobre ele: 4,71:1. Como borda sobre `surface`: 3,97:1. Não usar como anel de foco (2,40:1 sobre `surface-raised`) |
+| `primary-hover` | `app-purple-600` | `#6B46C1` | Hover do botão primário | `text-primary` sobre ele: 6,42:1 |
+| `on-primary` | `white` | `#FFFFFF` | Texto sobre `primary`/`primary-hover` (botão primário) | 4,71 / 6,42 |
+| `on-danger` | `app-gray-850` | `#1F2729` | Texto do botão `danger` | 5,45:1 sobre `danger` |
+| `accent` | `app-purple-400` | `#A78BFA` | Marcadores `[n]`, índice da fonte, ícone de informação | 6,88 (surface), 5,59 (canvas); não usar como texto sobre `surface-raised` (4,15:1) |
+| `success` | `app-green-500` | `#04D361` | Pronto | 9,35 (surface), 7,60 (canvas) |
+| `warning` | `app-amber-300` | `#F4B860` | Processando | 10,58 (surface), 8,60 (canvas) |
+| `danger` | `app-red-300` | `#F17383` | Falhou, remoção | 6,70 (surface), 5,45 (canvas); botão `danger` com texto `on-danger`: 5,45:1 |
 
-**Nota de contraste (estimativa, confirmar na tarefa 5.2.1):** texto branco sobre a ponta ciano do gradiente fica perto de 2,4:1, e sobre `primary` perto de 4:1 — ambos abaixo do AA para texto normal. Opções: usar texto `canvas` em peso 600 no botão, ou escurecer a ponta ciano até atingir 4,5:1 com texto branco. Decidir na Sprint 4 e registrar aqui.
+**Paleta `app-*`** (única fonte de hex; os componentes nunca usam `app-*` diretamente): `white` `#FFFFFF`, `black` `#000000`, `transparent`; `app-purple-400` `#A78BFA`, `app-purple-500` `#8257E6`, `app-purple-600` `#6B46C1`, `app-purple-900` `#581C87`; `app-green-500` `#04D361`; `app-gray-50` `#F8F8F8`, `app-gray-100` `#E1E1E6`, `app-gray-200` `#A8A8B3`, `app-gray-300` `#737380`, `app-gray-400` `#52525B`, `app-gray-500` `#414149`, `app-gray-600` `#3D3D44`, `app-gray-700` `#3A3A40`, `app-gray-800` `#29292E`, `app-gray-850` `#1F2729`, `app-gray-900` `#121214`. Fora da paleta do usuário, que não tem amarelo nem vermelho: `app-amber-300` `#F4B860` e `app-red-300` `#F17383` (os valores de `warning` e `danger` do tema anterior, usados no escuro) e `app-green-700` `#047A39`, `app-amber-700` `#8A5A00` e `app-red-700` `#B42335` (variantes do tema claro).
+
+**Botão primário (tarefas 4.8 e 4.9):** fundo sólido `primary` com texto `on-primary` (branco), 4,71:1; no hover, `primary-hover`, 6,42:1. Com `app-gray-50` no lugar do branco, o texto reprovaria (4,44:1). O gradiente da v2.1 foi retirado. `app-gray-300` (antigo `text-muted`) reprova como texto em todos os fundos escuros (3,25 sobre canvas, 4,00 sobre surface, 2,42 sobre surface-raised) e não é usado como token semântico. Confirmar na tarefa 5.2.1.
 
 ### 9.2 Tipografia, espaço e forma
 
@@ -528,6 +540,38 @@ Tema escuro único, orientado à leitura, com tokens semânticos no `tailwind.co
 | `AlertBanner` | `info`, `success`, `warning`, `error` | Ícone + texto; `role='alert'` só para erro |
 
 Classes Tailwind ficam nos templates; extrair para componente só quando o mesmo padrão se repete em três ou mais lugares.
+
+### 9.4 Temas claro e escuro
+
+- **Tokens por tema:** os tokens semânticos da §9.1 (`canvas`, `surface`, `text-primary`, `primary`...) mudam de valor conforme o tema, sempre a partir da paleta `app-*`. Os componentes usam só tokens semânticos: nada de `dark:` nem de `app-*` nos templates. A tabela da §9.1 é a do tema escuro.
+- **Mecanismo:** a classe `dark` no `<html>` ativa o tema escuro (`@custom-variant dark` do Tailwind 4); sem ela, vale o claro. `color-scheme` acompanha o tema. Os tokens semânticos ficam num `@theme inline` que aponta para variáveis `--theme-*`, definidas em `:root` (claro) e `:root.dark` (escuro); a paleta fica num `@theme static`.
+- **Padrão e persistência:** na primeira visita, segue `prefers-color-scheme`; sem preferência, escuro. A escolha é salva em `localStorage` na chave `theme` (`'light'` ou `'dark'`); se o armazenamento falhar, o app funciona com o padrão.
+- **Sem flash:** um script inline mínimo no `index.html` aplica a classe antes de o Vue montar.
+- **Controle:** botão no cabeçalho, alcançável por `Tab`, com ícone (sol/lua) e `aria-label` em pt-BR que diz o tema que será ativado (por exemplo, "Ativar tema claro"). Os textos ficam em `locales/pt-BR.ts`.
+- **Transição:** troca de cor de 200 ms em fundo, borda e texto, desligada com `prefers-reduced-motion`.
+- **Contraste:** os dois temas cumprem a §7.5. Cores da paleta que não atingem o AA num tema (por exemplo, `app-green-500` como texto sobre fundo claro) ganham uma variante própria na configuração do tema.
+
+**Tema claro (tarefa 4.12)**, valores finais com contrastes medidos (WCAG 2.x; `canvas` #F8F8F8, `surface` #FFFFFF, `surface-raised` #E1E1E6):
+
+| Token | Tema claro | Hex | Contraste medido |
+| --- | --- | --- | --- |
+| `canvas` | `app-gray-50` | `#F8F8F8` | — |
+| `surface` | `white` | `#FFFFFF` | — |
+| `surface-raised` | `app-gray-100` | `#E1E1E6` | — |
+| `border` | `app-gray-200` | `#A8A8B3` | Decorativo; como fundo de hover, `text-primary` sobre ele dá 7,94:1 |
+| `control-border` | `app-gray-300` | `#737380` | ≥ 3:1: 4,40 (canvas), 4,67 (surface), 3,59 (surface-raised) |
+| `focus` | `app-purple-600` | `#6B46C1` | ≥ 3:1: 6,04 (canvas), 6,42 (surface), 4,93 (surface-raised) |
+| `text-primary` | `app-gray-900` | `#121214` | 17,62 (canvas), 18,71 (surface), 14,36 (surface-raised) |
+| `text-secondary` | `app-gray-500` | `#414149` | 9,52 (canvas), 10,11 (surface), 7,76 (surface-raised) |
+| `primary` / `primary-hover` | `app-purple-600` / `app-purple-900` | `#6B46C1` / `#581C87` | `on-primary` sobre eles: 6,42 / 10,88; como borda sobre `surface`: 6,42 |
+| `on-primary` | `white` | `#FFFFFF` | Texto do botão primário |
+| `accent` | `app-purple-600` | `#6B46C1` | 6,42 (surface), 6,04 (canvas), 4,93 (surface-raised) |
+| `success` | `app-green-700` | `#047A39` | 5,46 (surface), 5,14 (canvas). `app-green-500` daria 2,00 |
+| `warning` | `app-amber-700` | `#8A5A00` | 5,93 (surface), 5,58 (canvas) |
+| `danger` | `app-red-700` | `#B42335` | 6,50 (surface), 6,12 (canvas) |
+| `on-danger` | `white` | `#FFFFFF` | Texto do botão `danger`: 6,50 (5,62 no hover com `brightness-110`) |
+
+`app-green-700`, `app-amber-700` e `app-red-700` são variantes escuras próprias, fora da paleta do usuário, definidas no `@theme` junto de `app-amber-300` e `app-red-300`.
 
 ## 10. Sprints e Definition of Done
 
@@ -579,8 +623,15 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 - [ ] 4.5 Integrar upload, polling, lista, remoção com confirmação e estado vazio.
 - [ ] 4.6 Integrar chat: seleção, envio por botão/`Enter`, citações `[n]` clicáveis e fontes.
 - [ ] 4.7 Exibir o aviso de envio de dados à OpenAI junto ao upload.
+- [ ] 4.8 Adotar a nova paleta `app-*` e remapear os tokens semânticos (§9.1).
+- [ ] 4.9 Medir o contraste WCAG AA da nova paleta e ajustar o que reprovar.
+- [ ] 4.10 Aplicar a transição de cor global, desligada com `prefers-reduced-motion`.
+- [ ] 4.11 Atualizar §9.1, `docs/design-system.md` e README com a nova paleta.
+- [ ] 4.12 Implementar o tema claro (§9.4) e medir o contraste dos dois temas.
+- [ ] 4.13 Criar o seletor de tema no cabeçalho, com padrão do sistema, persistência e sem flash (RF-19).
+- [ ] 4.14 Verificar a DoD nos dois temas.
 
-**DoD:** o fluxo da §4.4 completo funciona em 1440 px e 360 px, só com teclado, e nenhuma string em inglês aparece na interface.
+**DoD:** o fluxo da §4.4 completo funciona em 1440 px e 360 px, só com teclado, nos temas claro e escuro, e nenhuma string em inglês aparece na interface. Os dois temas passam no WCAG AA, e a escolha de tema persiste após recarregar (RF-19).
 
 ### Sprint 5 — Revisão do MVP
 
@@ -616,7 +667,7 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 | Troca de modelo de embedding invalida o índice | Médio | `embedding_model` nos metadados + aviso no startup (§8.3) |
 | Remoção parcial deixa resíduos | Baixo | Ordem fixa e passos idempotentes (§8.3) |
 | Mudanças de API do LangChain | Baixo | Versões fixadas com `==`; integração concentrada em dois serviços |
-| Contraste insuficiente no gradiente | Baixo | Tarefa 4.2 e verificação 5.2 |
+| Contraste insuficiente na paleta (dois temas) | Baixo | Tarefas 4.9 e 4.12 e verificação 5.2 |
 | Sem testes nas Sprints 1–5 | Médio | Critérios "Verificar" e DoD por sprint |
 
 ### 11.2 Métricas

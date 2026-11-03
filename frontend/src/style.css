@@ -1,35 +1,166 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens (PRD §9.1). This is the only place where hex colors may appear.
- * The default Tailwind palette is removed so only the project tokens exist.
+ * Inter variable font (rsms/inter v4.1, SIL OFL 1.1; license in assets/fonts/LICENSE.txt).
+ * Served locally, no CDN. Only the upright variable file is bundled.
  */
-@theme {
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/InterVariable.woff2') format('woff2');
+}
+
+/* Class-based dark theme (PRD §9.4): `dark` on <html>. Components do not use dark:, only tokens. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Palette (PRD §9.1): the only place where hex colors may appear. `static` keeps every
+ * palette variable in the output, because the theme blocks below reference them by var().
+ * The default Tailwind color scale is removed so only the project tokens exist.
+ */
+@theme static {
   --color-*: initial;
 
-  --color-canvas: #0b1020;
-  --color-surface: #121a2b;
-  --color-surface-raised: #1a2540;
-  --color-border: #293653;
-  --color-text-primary: #f4f7fc;
-  --color-text-secondary: #a8b4cc;
-  --color-text-muted: #75829d;
-  --color-primary: #7c6cf2;
-  --color-primary-hover: #9285ff;
-  --color-accent: #35c8d0;
-  --color-success: #42c99a;
-  --color-warning: #f4b860;
-  --color-danger: #f17383;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-transparent: transparent;
 
-  --font-sans: system-ui, sans-serif;
+  --color-app-purple-400: #a78bfa;
+  --color-app-purple-500: #8257e6;
+  --color-app-purple-600: #6b46c1;
+  --color-app-purple-900: #581c87;
+  --color-app-green-500: #04d361;
+  --color-app-gray-50: #f8f8f8;
+  --color-app-gray-100: #e1e1e6;
+  --color-app-gray-200: #a8a8b3;
+  --color-app-gray-300: #737380;
+  --color-app-gray-400: #52525b;
+  --color-app-gray-500: #414149;
+  --color-app-gray-600: #3d3d44;
+  --color-app-gray-700: #3a3a40;
+  --color-app-gray-800: #29292e;
+  --color-app-gray-850: #1f2729;
+  --color-app-gray-900: #121214;
+  /* Not in the user palette (it has no yellow or red, and its green fails as text on light
+     backgrounds): status colors for the dark (-300/-500) and light (-700) themes. */
+  --color-app-amber-300: #f4b860;
+  --color-app-red-300: #f17383;
+  --color-app-green-700: #047a39;
+  --color-app-amber-700: #8a5a00;
+  --color-app-red-700: #b42335;
+}
+
+/*
+ * Semantic tokens used by the components. `inline` makes each utility use var(--theme-*),
+ * which changes with the theme (values in the base layer below; contrast in PRD §9.1/§9.4).
+ */
+@theme inline {
+  --color-canvas: var(--theme-canvas);
+  --color-surface: var(--theme-surface);
+  --color-surface-raised: var(--theme-surface-raised);
+  --color-border: var(--theme-border);
+  --color-control-border: var(--theme-control-border);
+  --color-focus: var(--theme-focus);
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-primary: var(--theme-primary);
+  --color-primary-hover: var(--theme-primary-hover);
+  /* Text on solid colored backgrounds (primary and danger buttons). */
+  --color-on-primary: var(--theme-on-primary);
+  --color-on-danger: var(--theme-on-danger);
+  --color-accent: var(--theme-accent);
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-danger: var(--theme-danger);
+}
+
+/* Layout tokens (PRD §9.2). */
+@theme {
+  /* Typography (§9.2) */
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.5;
+
+  /* Radius (§9.2): rounded-panel for cards/panels, rounded-control for buttons/fields */
+  --radius-*: initial;
+  --radius-control: 0.5rem;
+  --radius-panel: 0.75rem;
+
+  /* Breakpoints (§9.2): mobile < 640px, tablet 640-1023px (sm:), desktop >= 1024px (lg:) */
+  --breakpoint-*: initial;
+  --breakpoint-sm: 40rem;
+  --breakpoint-lg: 64rem;
+
+  /* Layout: w-sidebar for the desktop documents sidebar */
+  --spacing-sidebar: 20rem;
 }
 
 @layer base {
-  html {
+  /* Light theme (default, no class). */
+  :root {
+    color-scheme: light;
+    --theme-canvas: var(--color-app-gray-50);
+    --theme-surface: var(--color-white);
+    --theme-surface-raised: var(--color-app-gray-100);
+    --theme-border: var(--color-app-gray-200);
+    --theme-control-border: var(--color-app-gray-300);
+    --theme-focus: var(--color-app-purple-600);
+    --theme-text-primary: var(--color-app-gray-900);
+    --theme-text-secondary: var(--color-app-gray-500);
+    --theme-primary: var(--color-app-purple-600);
+    --theme-primary-hover: var(--color-app-purple-900);
+    --theme-on-primary: var(--color-white);
+    --theme-on-danger: var(--color-white);
+    --theme-accent: var(--color-app-purple-600);
+    --theme-success: var(--color-app-green-700);
+    --theme-warning: var(--color-app-amber-700);
+    --theme-danger: var(--color-app-red-700);
+  }
+
+  /* Dark theme (class `dark` on <html>). */
+  :root.dark {
     color-scheme: dark;
+    --theme-canvas: var(--color-app-gray-850);
+    --theme-surface: var(--color-app-gray-900);
+    --theme-surface-raised: var(--color-app-gray-700);
+    --theme-border: var(--color-app-gray-600);
+    --theme-control-border: var(--color-app-gray-200);
+    --theme-focus: var(--color-app-purple-400);
+    --theme-text-primary: var(--color-white);
+    --theme-text-secondary: var(--color-app-gray-200);
+    --theme-primary: var(--color-app-purple-500);
+    --theme-primary-hover: var(--color-app-purple-600);
+    --theme-on-primary: var(--color-white);
+    --theme-on-danger: var(--color-app-gray-850);
+    --theme-accent: var(--color-app-purple-400);
+    --theme-success: var(--color-app-green-500);
+    --theme-warning: var(--color-app-amber-300);
+    --theme-danger: var(--color-app-red-300);
   }
 
   body {
     @apply bg-canvas text-text-primary antialiased;
+  }
+
+  /*
+   * Global color transition (PRD §9.4). It lives in the base layer, so utilities such as
+   * transition-transform (SourceCard chevron) still win, and it never touches animations
+   * (spinner) or outline/transform.
+   */
+  /* Enabled only after the first paint (class added in main.ts), so the page does not fade
+     in on load, and only without prefers-reduced-motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    :root.color-transitions *,
+    :root.color-transitions ::before,
+    :root.color-transitions ::after {
+      transition-property: background-color, border-color, color;
+      transition-duration: 200ms;
+      transition-timing-function: ease;
+    }
   }
 }

@@ -112,11 +112,14 @@ Nas 10 execuções, 36 das 90 respostas com evidência (40%) vieram sem nenhum `
 
 Na configuração final, foram 5 de 9 (56%), de forma estável nas 3 execuções: S1, S2, S4, S5 e X1. O padrão é claro: respostas de **uma frase só** vêm sem marcador. Respostas com duas ou mais afirmações (M1, M2, M3) trazem `[n]` por frase. A exceção é o S3, que trouxe `[1][2]`.
 
-Isso descumpre a regra 2 do prompt, mas a regra de evidência não depende do marcador. Por decisão da tarefa, o prompt e a regra **não foram alterados**. Fica para o usuário decidir, por exemplo:
+Isso descumpre a regra 2 do prompt, mas a regra de evidência não depende do marcador.
 
-- uma `ANSWER_PROMPT_V2` com exemplo de resposta;
-- a UI exibir as fontes mesmo sem `[n]` no texto;
-- o código anexar os marcadores de `cited` ao fim da resposta (mudança na regra, não no contrato).
+**Resolvido (pós-Sprint 4, 3 de novembro de 2026):** por decisão do usuário, o código acrescenta os marcadores a partir de `cited`. O prompt (`ANSWER_PROMPT_V1`) e o contrato da API não mudaram.
+
+- Em `rag_service.py`, `_with_citation_markers` roda depois da camada 2, só quando há evidência. Se o `answer` não tiver nenhum `[n]` cujo índice esteja em `cited`, ela acrescenta os marcadores de `cited` (ordem crescente, sem repetição, a mesma de `sources`) colados ao fim, antes da pontuação final: "…é de 23 dBm." vira "…é de 23 dBm [1]."; sem pontuação final, "texto [1]".
+- Se o `answer` já tiver um marcador válido, nada muda. A resposta fixa também não muda.
+- O log registra só a contagem (`citation_markers_added count=N`).
+- Reexecução do conjunto na configuração final (tag `fix`): 9 de 9 respostas com evidência trazem `[n]` (antes, 4 de 9). S1, S2, S4, S5 e X1 receberam o marcador do código; S3 e M1–M3 já vinham com ele. O placar não mudou: 13/15, com as 4 fora do tema na resposta fixa e as 2 parciais ainda em 0/2.
 
 ### Perguntas parcialmente respondíveis (0/2 em todas as rodadas)
 

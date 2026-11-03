@@ -31,6 +31,10 @@ PROVIDER_MAX_RETRIES = 1
 # Matches `<trecho` and `</trecho` in any case, so chunk text cannot open or close
 # a context block (prompt injection defence, PRD §6.3).
 TRECHO_TAG_PATTERN = re.compile(r'</?trecho', re.IGNORECASE)
+# A citation marker such as `[3]` in the answer text (RF-12).
+CITATION_MARKER_PATTERN = re.compile(r'\[(\d+)\]')
+# Final punctuation kept after the appended markers: `texto.` -> `texto [1].`
+TRAILING_PUNCTUATION_PATTERN = re.compile(r'[.!?…:;]+$')
 
 _PROMPT = ChatPromptTemplate.from_messages(
     [('system', ANSWER_PROMPT_V1), ('human', QUESTION_PROMPT_V1)]
@@ -159,6 +163,21 @@ def _validated_citations(output: AnswerOutput | None, chunk_count: int) -> list[
     return sorted(set(output.cited))
 
 
+def _with_citation_markers(answer: str, cited: list[int]) -> tuple[str, int]:
+    """Append `[n]` markers from `cited` when the answer has none that matches.
+
+    Keeps any final punctuation at the end (`texto.` -> `texto [1].`). Returns the
+    answer and how many markers were appended.
+    """
+    valid = set(cited)
+    if any(int(m) in valid for m in CITATION_MARKER_PATTERN.findall(answer)):
+        return answer, 0
+    match = TRAILING_PUNCTUATION_PATTERN.search(answer)
+    end = match.start() if match else len(answer)
+    markers = ''.join(f'[{index}]' for index in cited)
+    return f'{answer[:end].rstrip()} {markers}{answer[end:]}', len(cited)
+
+
 def _source(index: int, chunk: LCDocument) -> Source:
     """Step 8: public source for chunk `[index]`, with a truncated excerpt."""
     return Source(
@@ -222,8 +241,11 @@ def answer_question(request: ChatRequest) -> ChatResponse:
         return _no_evidence()
 
     assert output is not None
+    answer, added_markers = _with_citation_markers(output.answer.strip(), cited)
+    if added_markers:
+        logger.info('citation_markers_added count=%d', added_markers)
     return ChatResponse(
-        answer=output.answer.strip(),
+        answer=answer,
         has_evidence=True,
         sources=[_source(index, chunks[index - 1]) for index in cited],
     )

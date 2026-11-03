@@ -20,7 +20,7 @@ A ingestão fica em `services/document_service.py` e a consulta em `services/rag
 5. Numerar os chunks de 1 a n e montar o prompt.
 6. Chamar o modelo com `with_structured_output` no schema `{has_evidence: bool, answer: str, cited: list[int]}`.
 7. **Camada 2:** se `has_evidence` for falso, `cited` vier vazio ou contiver índice inexistente → resposta fixa.
-8. Montar `sources` só com os índices citados, truncando `excerpt` em `EXCERPT_MAX_CHARS`.
+8. Montar `sources` só com os índices citados, truncando `excerpt` em `EXCERPT_MAX_CHARS`. Se o `answer` não tiver nenhum marcador `[n]` de um índice citado, o código acrescenta os marcadores de `cited` (ex.: `[1][3]`) ao fim do texto, antes da pontuação final.
 
 **Resposta fixa** (`has_evidence: false`, `sources: []`):
 

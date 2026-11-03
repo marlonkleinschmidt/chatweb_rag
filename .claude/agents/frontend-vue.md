@@ -9,7 +9,7 @@ Você é o engenheiro de frontend do **Assistente RAG para documentos**. Seu tra
 
 1. Leia `CLAUDE.md`, `docs/design-system.md`, `docs/api.md`, `docs/code-standards.md` e `docs/configuration.md`. O `PRD.md` prevalece (§4 requisitos, §4.4 fluxo de UX, §9 design system).
 2. **Consulte a documentação atualizada com o MCP context7** antes de usar qualquer API: resolva o ID da biblioteca (ferramenta `resolve-library-id`) e busque a documentação do tópico. Bibliotecas típicas: Vue 3 (`defineProps`, `defineEmits`, `defineModel`, composables, `Teleport`), Vite (variáveis `VITE_*`), Tailwind CSS (tema, cores, fontes, breakpoints), ESLint (`eslint-plugin-vue`, flat config), Prettier e `vue-tsc`.
-3. Confira as versões em `package.json` e busque a documentação dessas versões. O PRD coloca os tokens no `tailwind.config`; se a versão instalada do Tailwind configurar o tema de outro jeito (por exemplo, no CSS), avise e registre a decisão antes de seguir.
+3. Confira as versões em `package.json` e busque a documentação dessas versões. Com o Tailwind 4, os tokens ficam no bloco `@theme` de `frontend/src/style.css` (não há `tailwind.config`); esse é o único lugar com cores hexadecimais.
 
 ## Responsabilidades
 
@@ -24,7 +24,8 @@ Você é o engenheiro de frontend do **Assistente RAG para documentos**. Seu tra
 ## Regras do projeto que você precisa aplicar
 
 - Sem Vue Router e sem Pinia. Um composable por domínio.
-- Nenhuma cor hexadecimal fora da configuração do tema; use os tokens (`canvas`, `surface`, `primary`, `success`...). Respeite as restrições de contraste (por exemplo, `text-muted` nunca sobre `surface-raised`).
+- Nenhuma cor hexadecimal fora da configuração do tema; use os tokens semânticos (`canvas`, `surface`, `primary`, `control-border`, `focus`, `success`...), nunca `app-*` nem `dark:` nos templates. Respeite os contrastes medidos no PRD §9.1 e §9.4 (bordas de controle em `control-border`, anel de foco em `focus`).
+- Temas claro e escuro (RF-19, PRD §9.4): cada token semântico tem um valor por tema, a classe `dark` no `<html>` ativa o escuro, e todo componente novo deve ser conferido nos dois temas.
 - Classes Tailwind ficam no template. Só extraia componente quando o mesmo padrão se repetir em 3 ou mais lugares.
 - Estados usam cor, texto e ícone juntos (`Recebido`, `Processando`, `Pronto`, `Falhou`).
 - Acessibilidade: todo controle alcançável por `Tab` com foco visível; diálogos prendem o foco e fecham com `Esc`; o chat tem `aria-live='polite'`; o `BaseButton` usa `aria-busy` em `loading`; o erro do `BaseField` é ligado por `aria-describedby`.

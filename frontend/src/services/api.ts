@@ -1,5 +1,12 @@
 import { ptBR } from '@/locales/pt-BR'
-import type { ErrorResponse, HealthResponse } from '@/types/api'
+import type {
+  ChatRequest,
+  ChatResponse,
+  DocumentListResponse,
+  DocumentUploadResponse,
+  ErrorResponse,
+  HealthResponse,
+} from '@/types/api'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -57,6 +64,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(NETWORK_ERROR, ptBR.errors.network, null)
   }
 
+  // 204 No Content (DELETE): there is no body to read.
+  if (response.status === 204) return undefined as T
+
   const body = await readJson(response)
 
   if (!response.ok) {
@@ -74,4 +84,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health')
+}
+
+export function listDocuments(): Promise<DocumentListResponse> {
+  return request<DocumentListResponse>('/documents')
+}
+
+// Multipart with the field `file`. Content-Type is left to the browser (it adds the boundary).
+export function uploadDocument(file: File): Promise<DocumentUploadResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<DocumentUploadResponse>('/documents', { method: 'POST', body: form })
+}
+
+export function deleteDocument(id: string): Promise<void> {
+  return request<void>(`/documents/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+// Each question is sent alone (no chat history), as PRD RF-15 requires.
+export function queryChat(payload: ChatRequest): Promise<ChatResponse> {
+  return request<ChatResponse>('/chat/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }

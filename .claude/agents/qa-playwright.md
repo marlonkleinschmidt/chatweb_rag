@@ -34,6 +34,7 @@ Use as ferramentas do MCP `playwright` para acessar a aplicação (frontend em `
 
 **Design e acessibilidade (PRD §7.5 e §9):**
 - Cores só dos tokens.
+- Os dois temas (claro e escuro, RF-19) passam no WCAG AA, e a escolha de tema persiste após recarregar.
 - Sidebar de 320 px no desktop e abas no celular.
 - Sem rolagem horizontal em 360 px.
 - Foco visível em todo controle.

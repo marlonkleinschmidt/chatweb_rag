@@ -18,7 +18,7 @@ Reduzir o tempo para localizar informação em manuais e documentos PDF, com res
 
 - Simplicidade antes de generalidade.
 - Código em inglês, interface em pt-BR.
-- Tema escuro consistente.
+- Temas claro e escuro consistentes, escolhidos pelo usuário.
 - Aspas simples; PEP 8 no Python.
 - Testes automatizados e Docker só na Sprint 6.
 

@@ -39,17 +39,24 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** no conjunto de avaliação, as 4 perguntas fora do tema retornam a mensagem fixa, a pergunta com instrução maliciosa é ignorada e ao menos 4 das 5 perguntas de página única citam a página certa.
 
-### Sprint 4 — Design system e interface
+### Sprint 4 — Design system e interface [x]
 
-- [ ] 4.1 Configurar tokens, fonte, raios e breakpoints (§9).
-- [ ] 4.2 Decidir e aplicar a solução de contraste do botão primário (§9.1).
-- [ ] 4.3 Criar os componentes base da §9.3 e `locales/pt-BR.ts`.
-- [ ] 4.4 Montar layout desktop (sidebar + chat) e celular (abas).
-- [ ] 4.5 Integrar upload, polling, lista, remoção com confirmação e estado vazio.
-- [ ] 4.6 Integrar chat: seleção, envio por botão/`Enter`, citações `[n]` clicáveis e fontes.
-- [ ] 4.7 Exibir o aviso de envio de dados à OpenAI junto ao upload.
+- [x] 4.1 Configurar tokens, fonte, raios e breakpoints (§9).
+- [x] 4.2 Decidir e aplicar a solução de contraste do botão primário (§9.1).
+- [x] 4.3 Criar os componentes base da §9.3 e `locales/pt-BR.ts`.
+- [x] 4.4 Montar layout desktop (sidebar + chat) e celular (abas).
+- [x] 4.5 Integrar upload, polling, lista, remoção com confirmação e estado vazio.
+- [x] 4.6 Integrar chat: seleção, envio por botão/`Enter`, citações `[n]` clicáveis e fontes.
+- [x] 4.7 Exibir o aviso de envio de dados à OpenAI junto ao upload.
+- [x] 4.8 Adotar a nova paleta `app-*` (roxo, verde e cinzas) no `@theme`, remapeando os tokens semânticos da §9.1 (`canvas`, `surface`, `primary`...) para ela, com fundo global `app-gray-850`.
+- [x] 4.9 Medir o contraste WCAG AA da nova paleta (texto, botão primário, badges, bordas de controle, anel de foco) e ajustar o que reprovar.
+- [x] 4.10 Aplicar a transição de cor global (200 ms em fundo, borda e texto), desligada com `prefers-reduced-motion`.
+- [x] 4.11 Atualizar a §9.1 do PRD, `docs/design-system.md` e o README (Decisões) com a nova paleta e os contrastes medidos.
+- [x] 4.12 Implementar o tema claro (PRD §9.4): valores claros dos tokens semânticos, classe `dark` no `<html>` e contraste AA medido nos dois temas, registrado na §9.4.
+- [x] 4.13 Criar o seletor de tema no cabeçalho (RF-19): padrão do sistema, escolha salva no `localStorage`, sem flash ao carregar e textos em `locales/pt-BR.ts`.
+- [x] 4.14 Verificar de novo a DoD com a nova paleta, nos temas claro e escuro, em 1440 px e 360 px.
 
-**DoD:** o fluxo da §4.4 completo funciona em 1440 px e 360 px, só com teclado, e nenhuma string em inglês aparece na interface.
+**DoD:** o fluxo da §4.4 completo funciona em 1440 px e 360 px, só com teclado, nos temas claro e escuro, e nenhuma string em inglês aparece na interface. Os dois temas passam no WCAG AA, e a escolha de tema persiste após recarregar (RF-19).
 
 ### Sprint 5 — Revisão do MVP
 

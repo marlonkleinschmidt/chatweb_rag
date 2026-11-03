@@ -1,27 +1,63 @@
 # Design system
 
-Tema escuro único, orientado à leitura. Tokens semânticos ficam no `tailwind.config`; **nenhuma cor hexadecimal aparece fora da configuração do tema.**
+Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos ficam no `@theme` de `frontend/src/style.css`, com um valor por tema; **nenhuma cor hexadecimal aparece fora da configuração do tema.** As tabelas abaixo são do tema escuro; regras e tokens do tema claro estão no PRD §9.4.
+
+## Temas
+
+- A classe `dark` no `<html>` ativa o tema escuro; sem ela, vale o claro.
+- Na primeira visita, segue `prefers-color-scheme` (sem preferência: escuro). A escolha fica em `localStorage` (chave `theme`).
+- Script inline no `index.html` aplica o tema antes de o Vue montar, sem flash.
+- Seletor no cabeçalho com ícone e `aria-label` pt-BR. Componentes usam só tokens semânticos, sem `dark:`.
+- Os dois temas cumprem o WCAG AA.
 
 ## Cores
 
-| Token | Valor | Uso | Restrição |
-| --- | --- | --- | --- |
-| `canvas` | `#0B1020` | Fundo global | — |
-| `surface` | `#121A2B` | Painéis, sidebar, cards | — |
-| `surface-raised` | `#1A2540` | Inputs, menus, modal | Não usar `text-muted` sobre ele |
-| `border` | `#293653` | Bordas e divisores | Decorativo; bordas de controle usam `text-muted` |
-| `text-primary` | `#F4F7FC` | Texto principal | — |
-| `text-secondary` | `#A8B4CC` | Texto secundário | — |
-| `text-muted` | `#75829D` | Metadados | Só sobre `canvas`/`surface` |
-| `primary` | `#7C6CF2` | Ação principal, anel de foco | Texto branco sobre ele fica abaixo de 4,5:1 |
-| `primary-hover` | `#9285FF` | Hover | — |
-| `accent` | `#35C8D0` | Destaques, marcadores `[n]` | — |
-| `success` | `#42C99A` | Pronto | — |
-| `warning` | `#F4B860` | Processando | — |
-| `danger` | `#F17383` | Falhou, remoção | — |
-| `gradient-brand` | `#6757E8` → `#27B8C7` | Botão primário, detalhes pontuais | Ver nota de contraste |
+| Token | Paleta | Hex | Uso | Restrição / contraste medido (WCAG 2.x) |
+| --- | --- | --- | --- | --- |
+| `canvas` | `app-gray-850` | `#1F2729` | Fundo global | — |
+| `surface` | `app-gray-900` | `#121214` | Painéis, sidebar, cards, header | Separa melhor os painéis do fundo que `app-gray-800` (1,23:1 contra 1,05:1) |
+| `surface-raised` | `app-gray-700` | `#3A3A40` | Inputs, bolha do usuário, modal | — |
+| `border` | `app-gray-600` | `#3D3D44` | Bordas e divisores; fundo de hover de `secondary`/`ghost` | Decorativo; bordas de controle usam `control-border` |
+| `control-border` | `app-gray-200` | `#A8A8B3` | Borda de campos e do botão `secondary` | ≥ 3:1: 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
+| `focus` | `app-purple-400` | `#A78BFA` | Anel de foco | ≥ 3:1: 5,59 (canvas), 6,88 (surface), 4,15 (surface-raised) |
+| `text-primary` | `white` | `#FFFFFF` | Texto principal | 15,21 (canvas), 18,71 (surface), 11,30 (surface-raised), 10,77 (border) |
+| `text-secondary` | `app-gray-200` | `#A8A8B3` | Texto secundário, metadados, placeholder | 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
+| `primary` | `app-purple-500` | `#8257E6` | Fundo do botão primário; seleção e aba ativa | `text-primary` sobre ele: 4,71:1. Como borda sobre `surface`: 3,97:1. Não usar como anel de foco (2,40:1 sobre `surface-raised`) |
+| `primary-hover` | `app-purple-600` | `#6B46C1` | Hover do botão primário | `text-primary` sobre ele: 6,42:1 |
+| `on-primary` | `white` | `#FFFFFF` | Texto sobre `primary`/`primary-hover` (botão primário) | 4,71 / 6,42 |
+| `on-danger` | `app-gray-850` | `#1F2729` | Texto do botão `danger` | 5,45:1 sobre `danger` |
+| `accent` | `app-purple-400` | `#A78BFA` | Marcadores `[n]`, índice da fonte, ícone de informação | 6,88 (surface), 5,59 (canvas); não usar como texto sobre `surface-raised` (4,15:1) |
+| `success` | `app-green-500` | `#04D361` | Pronto | 9,35 (surface), 7,60 (canvas) |
+| `warning` | `app-amber-300` | `#F4B860` | Processando | 10,58 (surface), 8,60 (canvas) |
+| `danger` | `app-red-300` | `#F17383` | Falhou, remoção | 6,70 (surface), 5,45 (canvas); botão `danger` com texto `on-danger`: 5,45:1 |
 
-**Contraste do botão primário:** texto branco sobre o gradiente ou sobre `primary` fica abaixo do AA. A solução (texto `canvas` em peso 600 ou escurecer a ponta ciano) ainda será decidida na Sprint 4.
+**Paleta `app-*`** (única fonte de hex; os componentes nunca usam `app-*` diretamente): `white` `#FFFFFF`, `black` `#000000`, `transparent`; `app-purple-400` `#A78BFA`, `app-purple-500` `#8257E6`, `app-purple-600` `#6B46C1`, `app-purple-900` `#581C87`; `app-green-500` `#04D361`; `app-gray-50` `#F8F8F8`, `app-gray-100` `#E1E1E6`, `app-gray-200` `#A8A8B3`, `app-gray-300` `#737380`, `app-gray-400` `#52525B`, `app-gray-500` `#414149`, `app-gray-600` `#3D3D44`, `app-gray-700` `#3A3A40`, `app-gray-800` `#29292E`, `app-gray-850` `#1F2729`, `app-gray-900` `#121214`. Fora da paleta do usuário, que não tem amarelo nem vermelho: `app-amber-300` `#F4B860` e `app-red-300` `#F17383` (os valores de `warning` e `danger` do tema anterior, usados no escuro) e `app-green-700` `#047A39`, `app-amber-700` `#8A5A00` e `app-red-700` `#B42335` (variantes do tema claro).
+
+**Botão primário (tarefas 4.8 e 4.9):** fundo sólido `primary` com texto `on-primary` (branco), 4,71:1; no hover, `primary-hover`, 6,42:1. Com `app-gray-50` no lugar do branco, o texto reprovaria (4,44:1). O gradiente da v2.1 foi retirado. `app-gray-300` (antigo `text-muted`) reprova como texto em todos os fundos escuros (3,25 sobre canvas, 4,00 sobre surface, 2,42 sobre surface-raised) e não é usado como token semântico. Confirmar na tarefa 5.2.1.
+
+## Tema claro
+
+**Tema claro (tarefa 4.12)**, valores finais com contrastes medidos (WCAG 2.x; `canvas` #F8F8F8, `surface` #FFFFFF, `surface-raised` #E1E1E6):
+
+| Token | Tema claro | Hex | Contraste medido |
+| --- | --- | --- | --- |
+| `canvas` | `app-gray-50` | `#F8F8F8` | — |
+| `surface` | `white` | `#FFFFFF` | — |
+| `surface-raised` | `app-gray-100` | `#E1E1E6` | — |
+| `border` | `app-gray-200` | `#A8A8B3` | Decorativo; como fundo de hover, `text-primary` sobre ele dá 7,94:1 |
+| `control-border` | `app-gray-300` | `#737380` | ≥ 3:1: 4,40 (canvas), 4,67 (surface), 3,59 (surface-raised) |
+| `focus` | `app-purple-600` | `#6B46C1` | ≥ 3:1: 6,04 (canvas), 6,42 (surface), 4,93 (surface-raised) |
+| `text-primary` | `app-gray-900` | `#121214` | 17,62 (canvas), 18,71 (surface), 14,36 (surface-raised) |
+| `text-secondary` | `app-gray-500` | `#414149` | 9,52 (canvas), 10,11 (surface), 7,76 (surface-raised) |
+| `primary` / `primary-hover` | `app-purple-600` / `app-purple-900` | `#6B46C1` / `#581C87` | `on-primary` sobre eles: 6,42 / 10,88; como borda sobre `surface`: 6,42 |
+| `on-primary` | `white` | `#FFFFFF` | Texto do botão primário |
+| `accent` | `app-purple-600` | `#6B46C1` | 6,42 (surface), 6,04 (canvas), 4,93 (surface-raised) |
+| `success` | `app-green-700` | `#047A39` | 5,46 (surface), 5,14 (canvas). `app-green-500` daria 2,00 |
+| `warning` | `app-amber-700` | `#8A5A00` | 5,93 (surface), 5,58 (canvas) |
+| `danger` | `app-red-700` | `#B42335` | 6,50 (surface), 6,12 (canvas) |
+| `on-danger` | `white` | `#FFFFFF` | Texto do botão `danger`: 6,50 (5,62 no hover com `brightness-110`) |
+
+`app-green-700`, `app-amber-700` e `app-red-700` são variantes escuras próprias, fora da paleta do usuário, definidas no `@theme` junto de `app-amber-300` e `app-red-300`.
 
 ## Tipografia, espaço e forma
 
@@ -52,7 +88,7 @@ Tema escuro único, orientado à leitura. Tokens semânticos ficam no `tailwind.
 | `DocumentItem` | `document`, `selected` | Checkbox só para `ready`; menu com "Remover" |
 | `ConfirmDialog` | `title`, `message`, `confirmLabel` | Foco preso, `Esc` cancela, ação perigosa em `danger` |
 | `ChatMessage` | `role`, `content`, `sources` | Usuário à direita em `surface-raised`; assistente à esquerda em `surface`; `[n]` clicável rola até a fonte |
-| `SourceCard` | `source` | Arquivo, "Página n" (omitida se nula), trecho recolhível |
+| `SourceCard` | `source`, `removed` | Arquivo, "Página n" (omitida se nula), trecho recolhível; com `removed`, etiqueta "Documento removido" (ícone + texto em `text-secondary`), sem esconder a fonte |
 | `AlertBanner` | `info`, `success`, `warning`, `error` | Ícone + texto; `role='alert'` só para erro |
 
 ## Acessibilidade
