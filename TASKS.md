@@ -4,15 +4,15 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 ### Sprint 1 — Base local
 
-- [ ] 1.1 Registrar no README as versões de Python e Node usadas.
-- [ ] 1.2 **\[humano\]** Revogar a chave OpenAI exposta e gerar uma nova.
-- [ ] 1.3 Remover chaves dos scripts do protótipo; ler `OPENAI_API_KEY` do ambiente.
-- [ ] 1.4 Criar `.gitignore` (`.env`, `data/`, `node_modules/`, `__pycache__/`) e `.env.example` com todas as variáveis da §3.
-- [ ] 1.5 Criar FastAPI com `/api/v1/health`, `config.py`, CORS e handler global de erros (§5.3).
-- [ ] 1.6 Criar schemas Pydantic de `Document`, `ChatRequest`, `ChatResponse`, `Source`, `ErrorResponse`.
-- [ ] 1.7 Inicializar Vue 3 + TS + Vite + Tailwind; criar `services/api.ts` com URL base em `VITE_API_BASE_URL`.
-- [ ] 1.8 Configurar Ruff, ESLint e Prettier (§7.2).
-- [ ] 1.9 Documentar no README instalação e execução dos dois processos.
+- [x] 1.1 Registrar no README as versões de Python e Node usadas.
+- [x] 1.2 Revogar a chave OpenAI exposta e gerar uma nova.
+- [x] 1.3 Remover chaves dos scripts do protótipo; ler `OPENAI_API_KEY` do ambiente.
+- [x] 1.4 Criar `.gitignore` (`.env`, `data/`, `node_modules/`, `__pycache__/`) e `.env.example` com todas as variáveis da §3.
+- [x] 1.5 Criar FastAPI com `/api/v1/health`, `config.py`, CORS e handler global de erros (§5.3).
+- [x] 1.6 Criar schemas Pydantic de `Document`, `ChatRequest`, `ChatResponse`, `Source`, `ErrorResponse`.
+- [x] 1.7 Inicializar Vue 3 + TS + Vite + Tailwind; criar `services/api.ts` com URL base em `VITE_API_BASE_URL`.
+- [x] 1.8 Configurar Ruff, ESLint e Prettier (§7.2).
+- [x] 1.9 Documentar no README instalação e execução dos dois processos.
 
 **DoD:** `git grep -i 'sk-'` não encontra chave; `GET /api/v1/health` retorna `ok`; frontend exibe o status do health; lint passa nos dois lados.
 

@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (PRD §9.1). This is the only place where hex colors may appear.
+ * The default Tailwind palette is removed so only the project tokens exist.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-canvas: #0b1020;
+  --color-surface: #121a2b;
+  --color-surface-raised: #1a2540;
+  --color-border: #293653;
+  --color-text-primary: #f4f7fc;
+  --color-text-secondary: #a8b4cc;
+  --color-text-muted: #75829d;
+  --color-primary: #7c6cf2;
+  --color-primary-hover: #9285ff;
+  --color-accent: #35c8d0;
+  --color-success: #42c99a;
+  --color-warning: #f4b860;
+  --color-danger: #f17383;
+
+  --font-sans: system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-canvas text-text-primary antialiased;
+  }
+}

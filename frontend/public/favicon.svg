@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <style>
+    .bubble { fill: none; stroke: black; stroke-width: 44; stroke-linejoin: round; }
+    .dot { fill: black; }
+    @media (prefers-color-scheme: dark) {
+      .bubble { stroke: white; }
+      .dot { fill: white; }
+    }
+  </style>
+  <path class="bubble" d="M240 382H384A84 84 0 0 0 468 298V126A84 84 0 0 0 384 42H128A84 84 0 0 0 44 126V298A84 84 0 0 0 128 382V440L240 382Z" />
+  <circle class="dot" cx="160" cy="210" r="32" />
+  <circle class="dot" cx="256" cy="210" r="32" />
+  <circle class="dot" cx="352" cy="210" r="32" />
+</svg>

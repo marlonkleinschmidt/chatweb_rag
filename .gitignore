@@ -1,0 +1,20 @@
+# Secrets
+.env
+.env.local
+
+# Local data (SQLite, Chroma, uploaded PDFs)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
