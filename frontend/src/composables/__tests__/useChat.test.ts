@@ -40,7 +40,7 @@ describe('useChat', () => {
     vi.unstubAllGlobals()
   })
 
-  it('envia apenas pergunta e seleção, sem histórico da conversa', async () => {
+  it('envia pergunta, seleção e o histórico explícito (vazio na primeira pergunta)', async () => {
     const fetchMock = stubFetchResponses([
       jsonResponse(chatResponse()),
       jsonResponse(chatResponse()),
@@ -57,16 +57,22 @@ describe('useChat', () => {
     const firstInit = fetchMock.mock.calls[0]?.[1]
     const secondInit = fetchMock.mock.calls[1]?.[1]
     expect(firstInit?.method).toBe('POST')
-    // Only the current question and selection travel: no previous messages.
+    // Sprint 8 (RF-25): the first question goes with `history: []`; the next one carries the
+    // previous turn, with the [n] markers removed.
     expect(JSON.parse(String(firstInit?.body))).toEqual({
       question: 'Qual é o prazo de entrega?',
       document_ids: ['doc-1'],
       show_sources: true,
+      history: [],
     })
     expect(JSON.parse(String(secondInit?.body))).toEqual({
       question: 'E qual o valor total?',
       document_ids: ['doc-1', 'doc-2'],
       show_sources: true,
+      history: [
+        { role: 'user', content: 'Qual é o prazo de entrega?' },
+        { role: 'assistant', content: 'Afirmação apoiada no documento.' },
+      ],
     })
   })
 
@@ -141,7 +147,15 @@ describe('useChat', () => {
 
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'Pergunta fora do tema dos documentos' },
-      { id: 2, role: 'assistant', content: noEvidenceAnswer, sources: [], markdown: false },
+      // Sprint 8: flagged so it stays out of the history (RF-25).
+      {
+        id: 2,
+        role: 'assistant',
+        content: noEvidenceAnswer,
+        sources: [],
+        markdown: false,
+        noEvidence: true,
+      },
     ])
   })
 

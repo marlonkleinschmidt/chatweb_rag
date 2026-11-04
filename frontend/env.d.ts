@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_POLL_INTERVAL_MS?: string
   readonly VITE_MAX_DOCUMENTS_PER_QUERY?: string
   readonly VITE_MAX_QUESTION_CHARS?: string
+  readonly VITE_MAX_HISTORY_TURNS?: string
+  readonly VITE_MAX_HISTORY_CHARS?: string
 }
 
 interface ImportMeta {

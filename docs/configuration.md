@@ -22,6 +22,9 @@ Os valores marcados "validado na Sprint 3" foram calibrados com o conjunto de [e
 | Tamanho da pergunta | 3 a 2.000 caracteres | `MAX_QUESTION_CHARS` |
 | Documentos por consulta | 1 a 10 | `MAX_DOCUMENTS_PER_QUERY` |
 | Trecho exibido por fonte | até 500 caracteres | `EXCERPT_MAX_CHARS` |
+| Histórico de conversa (PRD §13) | Até 4 trocas (pergunta + resposta) e 4.000 caracteres no total; acima disso, `422 history_invalid`. Com `MAX_HISTORY_TURNS=0`, só `history: []` é aceito | `MAX_HISTORY_TURNS`, `MAX_HISTORY_CHARS` |
+| Limites do histórico no frontend | Espelham os do backend (mesmos defaults, 4 e 4.000; manter iguais); o frontend corta as trocas mais antigas antes de enviar. `VITE_MAX_HISTORY_TURNS=0` envia sempre `history: []` | `VITE_MAX_HISTORY_TURNS`, `VITE_MAX_HISTORY_CHARS` |
+| Reescrita da pergunta com histórico (PRD §13.7) | `true`: uma chamada extra ao `CHAT_MODEL` por pergunta com histórico, com timeout `PROVIDER_TIMEOUT_S` e sem nova tentativa. Com `false`, a recuperação usa a pergunta original, mas o histórico ainda vai ao prompt de resposta | `QUERY_REWRITE_ENABLED` |
 | Coleção Chroma | `documents` | `CHROMA_COLLECTION` |
 | Diretórios | `data/documents`, `data/chroma`, `data/app.db` | `DOCUMENTS_DIR`, `CHROMA_DIR`, `SQLITE_PATH` |
 | CORS | apenas `http://localhost:5173` | `CORS_ORIGINS` |

@@ -32,13 +32,36 @@ Todos os endpoints ficam sob `/api/v1`, trocam JSON (exceto o upload multipart) 
 }
 ```
 
-**`ChatRequest`** — cada pergunta é independente; nunca inclui mensagens anteriores.
+**`ChatRequest`** — a pergunta atual mais o histórico recente da conversa, opcional (PRD §13.6). Sem `history` (ou com `[]`), cada pergunta é independente, como na v2.2.
 
 ```json
 {
-  "question": "Qual é o procedimento de reinicialização?",
+  "question": "E o ano de fabricação?",
   "document_ids": ["8f3c2a1e-..."],
-  "show_sources": false
+  "show_sources": true,
+  "history": [
+    {"role": "user", "content": "Qual é a placa do veículo?"},
+    {"role": "assistant", "content": "A placa do veículo é ABC1D23."}
+  ]
+}
+```
+
+- `history` (opcional, lista de `ChatHistoryMessage`, default `[]`; vale também para `/chat/query/stream`): mensagens anteriores em ordem cronológica, cada uma `{"role": "user" | "assistant", "content": str}`. `content` não pode ser vazio após `strip`; a alternância de papéis não é exigida.
+- Limites: até `2 × MAX_HISTORY_TURNS` mensagens (padrão 8) e `MAX_HISTORY_CHARS` caracteres somando os `content` como enviados (padrão 4.000). Com `MAX_HISTORY_TURNS=0`, só `[]` é aceito. Qualquer violação (limites, `role` fora do enum, `content` vazio ou com tipo errado) retorna `422 history_invalid` sem consultar o modelo.
+- Se vários campos forem inválidos, o `code` segue a prioridade `question_invalid` → `history_invalid` → `invalid_request`.
+- Antes de montar os prompts, o backend remove de cada `content` os marcadores `[n]` e as tags `<trecho`/`</trecho` e `<historico`/`</historico`. Mensagem que fica vazia após essa limpeza é ignorada; se nenhuma sobra, a consulta segue como sem histórico.
+- Com histórico, a pergunta é reescrita para a busca (se `QUERY_REWRITE_ENABLED=true`) e o histórico vai ao prompt de resposta como contexto; ver [rag-pipeline.md](rag-pipeline.md#histórico-da-conversa). O histórico nunca é evidência: só os trechos da consulta atual podem ser citados.
+- A resposta não muda: `ChatResponse` e os eventos SSE são os mesmos com ou sem histórico, e a pergunta reescrita **não** é devolvida ao cliente.
+- O frontend monta o `history` com as últimas trocas concluídas (sem erros, resposta fixa de RF-14 ou respostas interrompidas, e sem os `[n]`), cortando as mais antigas para caber em `VITE_MAX_HISTORY_TURNS`/`VITE_MAX_HISTORY_CHARS`. A primeira pergunta da conversa e a primeira depois de "Nova conversa" vão com `history: []`.
+
+Exemplo de erro (histórico acima dos limites, nos dois endpoints):
+
+```json
+{
+  "error": {
+    "code": "history_invalid",
+    "message": "O histórico da conversa é inválido ou excede o limite. Inicie uma nova conversa."
+  }
 }
 ```
 
@@ -68,7 +91,22 @@ Se algum `document_id` não existir ou não estiver `ready`, a API retorna `409 
 
 ## Streaming sem fontes (`POST /chat/query/stream`)
 
-Sempre responde sem fontes (PRD §12.6). O corpo é um `ChatRequest` com o default de `show_sources` trocado para `false` nesta rota (schema derivado `ChatStreamRequest`): a omissão já responde sem fontes; enviar `show_sources: true` explicitamente retorna `422 stream_sources_unsupported`, porque o endpoint não gera citações.
+Sempre responde sem fontes (PRD §12.6). O corpo é um `ChatRequest` (inclusive o `history` opcional, com os mesmos limites e o erro `422 history_invalid`) com o default de `show_sources` trocado para `false` nesta rota (schema derivado `ChatStreamRequest`): a omissão já responde sem fontes; enviar `show_sources: true` explicitamente retorna `422 stream_sources_unsupported`, porque o endpoint não gera citações.
+
+Exemplo de corpo com histórico (sem `show_sources`):
+
+```json
+{
+  "question": "E o ano de fabricação?",
+  "document_ids": ["8f3c2a1e-..."],
+  "history": [
+    {"role": "user", "content": "Qual é a placa do veículo?"},
+    {"role": "assistant", "content": "A placa do veículo é ABC1D23."}
+  ]
+}
+```
+
+A reescrita da pergunta (com histórico) roda antes de o stream abrir, junto com a recuperação; uma falha nela não gera erro (a busca usa a pergunta original).
 
 Sucesso: `200`, `Content-Type: text/event-stream`, `Cache-Control: no-cache`. Cada evento é uma linha `data: {json}\n\n`:
 
@@ -90,7 +128,7 @@ data: {"type": "error", "error": {"code": "provider_error", "message": "O servi�
 
 - Erros detectados **antes** do primeiro evento (validação `422`, documento não pronto `409`, falha ou timeout na recuperação `502`/`504`, `show_sources=true`) voltam como resposta JSON comum com o status correto — o stream ainda não começou. Falhas do provedor **durante** a geração viram evento `error` (o status 200 já foi comprometido); o texto parcial já recebido permanece válido no cliente.
 - Cliente desconecta (`AbortController`, aba fechada): o backend encerra o gerador e a iteração do modelo (cancelamento real), e nada além de IDs, contagens e durações vai para o log.
-- O log `query_done` ganha `show_sources`, `stream` e `first_token_ms` (apenas no caminho de stream; nunca conteúdo).
+- O log `query_done` ganha `show_sources`, `stream` e `first_token_ms` (apenas no caminho de stream; nunca conteúdo). Nos dois endpoints, também `history_turns`, `rewritten` e `rewrite_ms` (ver [rag-pipeline.md](rag-pipeline.md#histórico-da-conversa)).
 
 ## Upload
 
@@ -155,3 +193,4 @@ Nenhuma transição fora do diagrama é permitida. Documento em `processing` nã
 | `delete_partial` | 500 | Não foi possível concluir a remoção. Tente novamente. |
 | `internal_error` | 500 | Ocorreu um erro inesperado. Tente novamente. |
 | `stream_sources_unsupported` | 422 | O endpoint de streaming não exibe fontes; use /chat/query. |
+| `history_invalid` | 422 | O histórico da conversa é inválido ou excede o limite. Inicie uma nova conversa. |

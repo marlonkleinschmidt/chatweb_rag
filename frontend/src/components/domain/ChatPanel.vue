@@ -6,6 +6,7 @@ import AlertBanner from '@/components/ui/AlertBanner.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseField from '@/components/ui/BaseField.vue'
 import BaseIcon from '@/components/ui/BaseIcon.vue'
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import { useChat } from '@/composables/useChat'
 import { useShowSources } from '@/composables/useShowSources'
 import type { DocumentsStore } from '@/composables/useDocuments'
@@ -29,9 +30,27 @@ const questionError = ref('')
 const field = useTemplateRef<InstanceType<typeof BaseField>>('field')
 const log = useTemplateRef<HTMLElement>('log')
 const showSourcesId = useId()
+const conversationHintId = useId()
 
 const selectedCount = computed(() => props.store.selectedIds.length)
 const canSend = computed(() => selectedCount.value > 0 && !chat.generating)
+
+// RF-28: confirmation only when there is something to lose. Changing the document selection
+// never clears the conversation (PRD §13.8 decision 9).
+const confirmingNewConversation = ref(false)
+
+function onNewConversation(): void {
+  if (chat.entries.length > 0) {
+    confirmingNewConversation.value = true
+    return
+  }
+  chat.newConversation()
+}
+
+function confirmNewConversation(): void {
+  chat.newConversation()
+  confirmingNewConversation.value = false
+}
 
 watch(question, () => {
   questionError.value = ''
@@ -84,12 +103,26 @@ watch(
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col">
-    <!-- not-sr-only resets padding, so the spacing lives on the wrapper -->
-    <div class="shrink-0 lg:px-4 lg:pt-4">
+  <!-- bg-chat-canvas (task 8.17): darker background for the header and the log; the form keeps
+       bg-surface. -->
+  <div class="flex min-h-0 flex-1 flex-col bg-chat-canvas">
+    <!-- not-sr-only resets padding, so the spacing lives on the wrapper. Below lg the heading is
+         visually hidden and the button sits alone on the right. -->
+    <div class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-4">
       <h2 :id="headingId" class="sr-only text-lg font-semibold lg:not-sr-only">
         {{ ptBR.chat.heading }}
       </h2>
+      <BaseButton
+        class="ml-auto"
+        :disabled="chat.generating"
+        :aria-describedby="conversationHintId"
+        @click="onNewConversation"
+      >
+        {{ ptBR.chat.newConversation }}
+      </BaseButton>
+      <p :id="conversationHintId" class="w-full text-meta text-text-secondary">
+        {{ ptBR.chat.conversationHint }}
+      </p>
     </div>
 
     <!-- Only this area scrolls; the question form below stays in the footer without covering it.
@@ -112,6 +145,7 @@ watch(
           :content="entry.content"
           :sources="entry.sources"
           :markdown="entry.markdown"
+          :interrupted="entry.interrupted"
           :is-removed="store.isRemoved"
         />
         <ChatMessage v-else role="user" :content="entry.content" />
@@ -190,5 +224,14 @@ watch(
         </BaseButton>
       </div>
     </form>
+
+    <ConfirmDialog
+      :open="confirmingNewConversation"
+      :title="ptBR.newConversationDialog.title"
+      :message="ptBR.newConversationDialog.message"
+      :confirm-label="ptBR.newConversationDialog.confirm"
+      @cancel="confirmingNewConversation = false"
+      @confirm="confirmNewConversation"
+    />
   </div>
 </template>

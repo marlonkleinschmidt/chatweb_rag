@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { renderMarkdown } from '@/services/markdown'
+import { closePendingMarkdown, renderMarkdown } from '@/services/markdown'
 
 // MarkdownText.vue is a thin wrapper (a computed + the app's only v-html) and this suite has
 // no component-mounting infrastructure: the safe-subset contract (RF-24, §12.9 criteria 11
@@ -83,5 +83,65 @@ describe('renderMarkdown (MarkdownText)', () => {
     const list = renderMarkdown('- primeiro passo\n- segundo passo incompl')
     expect(list).toContain('<li>primeiro passo</li>')
     expect(list).toContain('<li>segundo passo incompl</li>')
+  })
+})
+
+// Task 8.16: closing is applied only when MarkdownText renders an interrupted entry
+// (closePending); the stored text is never changed, so the function is pure and returns a copy.
+describe('closePendingMarkdown (parcial interrompido)', () => {
+  it('fecha negrito aberto e o renderiza como <strong>', () => {
+    const text = 'O prazo é de **trinta dias'
+    const closed = closePendingMarkdown(text)
+
+    expect(closed).toBe('O prazo é de **trinta dias**')
+    expect(renderMarkdown(closed)).toContain('<strong>trinta dias</strong>')
+    expect(text).toBe('O prazo é de **trinta dias')
+  })
+
+  it('fecha itálico, tachado e código em linha', () => {
+    expect(closePendingMarkdown('veja *isto')).toBe('veja *isto*')
+    expect(closePendingMarkdown('use __forte')).toBe('use __forte__')
+    expect(closePendingMarkdown('era ~~antigo')).toBe('era ~~antigo~~')
+    expect(renderMarkdown(closePendingMarkdown('rode `reboot --n'))).toContain(
+      '<code>reboot --n</code>',
+    )
+  })
+
+  it('fecha marcações aninhadas da mais interna para a mais externa', () => {
+    const closed = closePendingMarkdown('**negrito com *itálico')
+
+    expect(closed).toBe('**negrito com *itálico***')
+    expect(renderMarkdown(closed)).toContain('<strong>negrito com <em>itálico</em></strong>')
+  })
+
+  it('remove espaços finais antes de fechar, para o fechamento valer', () => {
+    expect(closePendingMarkdown('**aguarde 30 segundos  ')).toBe('**aguarde 30 segundos**')
+  })
+
+  it('não altera texto já fechado, marcadores de lista nem snake_case', () => {
+    const done = 'Desligue e **aguarde**; *não* remova.'
+    expect(closePendingMarkdown(done)).toBe(done)
+    expect(closePendingMarkdown('* primeiro item\n* segundo item')).toBe(
+      '* primeiro item\n* segundo item',
+    )
+    expect(closePendingMarkdown('a variável max_chunk_size')).toBe('a variável max_chunk_size')
+    expect(closePendingMarkdown('preço 2 * 3')).toBe('preço 2 * 3')
+    expect(closePendingMarkdown('literal \\*sem ênfase')).toBe('literal \\*sem ênfase')
+  })
+
+  it('só olha a última linha: marcação aberta numa linha anterior já é final', () => {
+    const text = '- item com **aberto\n- item final'
+    expect(closePendingMarkdown(text)).toBe(text)
+    expect(closePendingMarkdown('- item\n- outro **corte')).toBe('- item\n- outro **corte**')
+  })
+
+  it('ignora delimitadores dentro de código e deixa o bloco cercado aberto como está', () => {
+    expect(closePendingMarkdown('use `a*b` e **x')).toBe('use `a*b` e **x**')
+    const fence = '```py\nprint(**kwargs'
+    expect(closePendingMarkdown(fence)).toBe(fence)
+  })
+
+  it('delimitador solto no fim (corte logo após **) fica como está', () => {
+    expect(closePendingMarkdown('veja **')).toBe('veja **')
   })
 })

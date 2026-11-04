@@ -113,7 +113,7 @@ export function deleteDocument(id: string): Promise<void> {
   return request<void>(`/documents/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-// Each question is sent alone (no chat history), as PRD RF-15 requires.
+// The recent turns travel in `history` (RF-25), built by useChat; [] means no history (RF-15).
 export function queryChat(payload: ChatRequest): Promise<ChatResponse> {
   return request<ChatResponse>('/chat/query', {
     method: 'POST',

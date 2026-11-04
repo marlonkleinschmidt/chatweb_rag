@@ -16,8 +16,10 @@ const props = withDefaults(
     // Streamed answers (show sources off) arrive as markdown (RF-24). With sources the
     // answer stays plain text with [n] buttons, exactly as before (PRD §12.9, criterion 1).
     markdown?: boolean
+    // Stopped by Parar (RF-23): markdown left open by the cut is closed only when rendering.
+    interrupted?: boolean
   }>(),
-  { sources: () => [], isRemoved: () => false, markdown: false },
+  { sources: () => [], isRemoved: () => false, markdown: false, interrupted: false },
 )
 
 type Segment = { kind: 'text'; text: string } | { kind: 'cite'; index: number }
@@ -59,14 +61,19 @@ async function goToSource(index: number): Promise<void> {
 
 <template>
   <div class="flex" :class="role === 'user' ? 'justify-end' : 'justify-start'">
+    <!-- Chat bubble tokens (task 8.17): both stand out from bg-chat-canvas in both themes. -->
     <div
-      class="max-w-[85%] min-w-0 rounded-panel p-3 text-body text-text-primary"
-      :class="role === 'user' ? 'bg-surface-raised' : 'border border-border bg-surface'"
+      class="max-w-[85%] min-w-0 rounded-panel p-3 text-body"
+      :class="
+        role === 'user'
+          ? 'bg-chat-bubble-user text-text-primary'
+          : 'border border-border bg-chat-bubble-assistant text-text-assistant'
+      "
     >
       <span class="sr-only">{{
         role === 'user' ? ptBR.chat.userLabel : ptBR.chat.assistantLabel
       }}</span>
-      <MarkdownText v-if="markdown" :text="content" />
+      <MarkdownText v-if="markdown" :text="content" :close-pending="interrupted" />
       <p v-else class="whitespace-pre-wrap break-words">
         <template v-for="(segment, i) in segments" :key="i">
           <span v-if="segment.kind === 'text'" v-text="segment.text" />

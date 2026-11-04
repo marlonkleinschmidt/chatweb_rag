@@ -33,6 +33,8 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = 'internal_error'
     # v2.2 (PRD §12.6): explicit sources requested on the streaming endpoint.
     STREAM_SOURCES_UNSUPPORTED = 'stream_sources_unsupported'
+    # v2.3 (PRD §13.6): conversation history outside the limits or malformed.
+    HISTORY_INVALID = 'history_invalid'
     # Generic codes (not in PRD §5.3) for framework-level errors.
     INVALID_REQUEST = 'invalid_request'
     NOT_FOUND = 'not_found'
@@ -71,6 +73,10 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.STREAM_SOURCES_UNSUPPORTED: (
         'O endpoint de streaming não exibe fontes; use /chat/query.'
     ),
+    ErrorCode.HISTORY_INVALID: (
+        'O histórico da conversa é inválido ou excede o limite. '
+        'Inicie uma nova conversa.'
+    ),
     ErrorCode.INVALID_REQUEST: 'Os dados enviados são inválidos.',
     ErrorCode.NOT_FOUND: 'Recurso não encontrado.',
     ErrorCode.METHOD_NOT_ALLOWED: 'Método não permitido.',
@@ -93,6 +99,7 @@ ERROR_STATUS: dict[ErrorCode, int] = {
     ErrorCode.DELETE_PARTIAL: 500,
     ErrorCode.INTERNAL_ERROR: 500,
     ErrorCode.STREAM_SOURCES_UNSUPPORTED: 422,
+    ErrorCode.HISTORY_INVALID: 422,
     ErrorCode.INVALID_REQUEST: 422,
     ErrorCode.NOT_FOUND: 404,
     ErrorCode.METHOD_NOT_ALLOWED: 405,
@@ -131,11 +138,23 @@ async def _app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     return error_response(exc.code, exc.message, exc.status_code)
 
 
+def _is_history_error(error: dict[str, object]) -> bool:
+    """True for errors located in the body field `history` (or inside it)."""
+    loc = error.get('loc', ())
+    return isinstance(loc, tuple | list) and tuple(loc[:2]) == ('body', 'history')
+
+
 async def _validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, RequestValidationError)
-    if any('question' in error.get('loc', ()) for error in exc.errors()):
+    # Deterministic priority when several fields fail: `question`, then
+    # `history`, then the generic code for anything else.
+    errors = exc.errors()
+    if any('question' in error.get('loc', ()) for error in errors):
         code = ErrorCode.QUESTION_INVALID
         message = error_message(code, n=settings.max_question_chars)
+    elif any(_is_history_error(error) for error in errors):
+        code = ErrorCode.HISTORY_INVALID
+        message = error_message(code)
     else:
         code = ErrorCode.INVALID_REQUEST
         message = error_message(code)

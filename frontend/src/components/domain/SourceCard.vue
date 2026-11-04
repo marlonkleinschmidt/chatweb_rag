@@ -24,7 +24,7 @@ const excerptId = useId()
   <!-- tabindex -1: receives focus programmatically when its [n] citation is clicked -->
   <article
     tabindex="-1"
-    class="rounded-panel border border-border bg-canvas p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+    class="rounded-panel border border-border bg-chat-canvas p-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
   >
     <div class="flex items-start gap-2">
       <span class="text-sm font-semibold text-accent" aria-hidden="true">[{{ source.index }}]</span>

@@ -137,3 +137,27 @@ export function pendingSseResponse(chunks: SseChunk[]): {
     error: (reason?: unknown) => controller.error(reason),
   }
 }
+
+// In-memory stand-in for localStorage (the node test environment has none). `data` exposes
+// the stored strings so tests can assert the exact key and format.
+export function storageMock(initial: Record<string, string> = {}) {
+  const data = new Map<string, string>(Object.entries(initial))
+  return {
+    data,
+    getItem: (key: string): string | null => data.get(key) ?? null,
+    setItem: (key: string, value: string): void => {
+      data.set(key, value)
+    },
+    removeItem: (key: string): void => {
+      data.delete(key)
+    },
+  }
+}
+
+// Storage that throws on every operation (blocked storage, e.g. private mode).
+export function blockedStorage() {
+  const boom = (): never => {
+    throw new Error('storage blocked')
+  }
+  return { getItem: boom, setItem: boom, removeItem: boom }
+}

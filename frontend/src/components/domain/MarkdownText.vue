@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { renderMarkdown } from '@/services/markdown'
+import { closePendingMarkdown, renderMarkdown } from '@/services/markdown'
 
-const props = defineProps<{
-  text: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    text: string
+    // Interrupted partial (task 8.16): closes the emphasis/code left open by the cut, only in
+    // the rendered output; the stored text and the history stay untouched.
+    closePending?: boolean
+  }>(),
+  { closePending: false },
+)
 
 // The computed tracks `text`, so the accumulated answer is re-processed on every delta
 // (PRD §12.4); incomplete markdown syntax shows as literal text until it is closed (§12.11).
-const html = computed(() => renderMarkdown(props.text))
+const html = computed(() =>
+  renderMarkdown(props.closePending ? closePendingMarkdown(props.text) : props.text),
+)
 </script>
 
 <template>
@@ -26,7 +34,7 @@ const html = computed(() => renderMarkdown(props.text))
  * :deep() is required because v-html content is not part of this component's template.
  */
 .markdown {
-  color: var(--theme-text-primary);
+  color: var(--theme-text-assistant);
 }
 
 .markdown :deep(:first-child) {
@@ -74,9 +82,28 @@ const html = computed(() => renderMarkdown(props.text))
   font-weight: 600;
 }
 
+/* Tailwind's preflight sets `list-style: none` on every list; restore the markers only here
+   (task 8.18), so other lists in the app keep their unstyled look. Nested bullet lists switch
+   to a hollow marker, as browsers do by default. */
 .markdown :deep(ul),
 .markdown :deep(ol) {
   padding-left: 1.5em;
+}
+
+.markdown :deep(ul) {
+  list-style-type: disc;
+}
+
+.markdown :deep(ul ul) {
+  list-style-type: circle;
+}
+
+.markdown :deep(ol) {
+  list-style-type: decimal;
+}
+
+.markdown :deep(li::marker) {
+  color: var(--theme-text-secondary);
 }
 
 .markdown :deep(li) {

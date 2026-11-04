@@ -25,12 +25,21 @@ export interface DocumentListResponse {
   embedding_model_changed: boolean
 }
 
+// One previous message of the conversation (PRD §13.6), in chronological order.
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface ChatRequest {
   question: string
   document_ids: string[]
   // Sent explicitly on every query (PRD §12.6): true keeps the [n] markers and sources;
   // false returns a continuous answer with sources: [].
   show_sources: boolean
+  // Optional (PRD §13.6): omitted or [] keeps the behaviour without history. Over
+  // 2 × MAX_HISTORY_TURNS messages or MAX_HISTORY_CHARS characters → 422 history_invalid.
+  history?: ChatHistoryMessage[]
 }
 
 // Body of POST /chat/query/stream (PRD §12.6): the route always answers without sources,
@@ -39,6 +48,8 @@ export interface ChatStreamRequest {
   question: string
   document_ids: string[]
   show_sources: false
+  // Same optional history and limits as ChatRequest (inherited by the backend schema).
+  history?: ChatHistoryMessage[]
 }
 
 export interface Source {

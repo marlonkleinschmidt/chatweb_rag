@@ -69,7 +69,8 @@ describe('useChat no modo streaming', () => {
       },
     ])
 
-    // Only the question and the selection travel, with sources explicitly off: no history.
+    // The question and the selection travel, with sources explicitly off and, being the first
+    // question, an explicit empty history (Sprint 8, RF-25).
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe(apiUrl('/chat/query/stream'))
     const init = fetchMock.mock.calls[0]?.[1]
@@ -82,6 +83,7 @@ describe('useChat no modo streaming', () => {
       question: 'Como reinicializar o equipamento?',
       document_ids: ['doc-1'],
       show_sources: false,
+      history: [],
     })
   })
 
@@ -109,7 +111,15 @@ describe('useChat no modo streaming', () => {
     expect(store.generating).toBe(false)
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'Como reinicializar?' },
-      { id: 2, role: 'assistant', content: 'Desligue o ', sources: [], markdown: true },
+      // Sprint 8: flagged so the partial stays out of the history (RF-25).
+      {
+        id: 2,
+        role: 'assistant',
+        content: 'Desligue o ',
+        sources: [],
+        markdown: true,
+        interrupted: true,
+      },
     ])
 
     // After Parar a new send is accepted immediately (RF-23).

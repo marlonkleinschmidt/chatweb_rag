@@ -30,6 +30,10 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 | `success` | `app-green-500` | `#04D361` | Pronto | 9,35 (surface), 7,60 (canvas) |
 | `warning` | `app-amber-300` | `#F4B860` | Processando | 10,58 (surface), 8,60 (canvas) |
 | `danger` | `app-red-300` | `#F17383` | Falhou, remoção | 6,70 (surface), 5,45 (canvas); botão `danger` com texto `on-danger`: 5,45:1 |
+| `chat-canvas` | `app-gray-900` | `#121214` | Fundo da seção Chat (cabeçalho e log; o formulário fica em `surface`), tarefa 8.17 | Ver "Seção Chat" abaixo |
+| `chat-bubble-assistant` | `app-gray-800` | `#29292E` | Card da resposta do assistente | 1,29:1 sobre `chat-canvas` (destaque pelo preenchimento) |
+| `chat-bubble-user` | `app-gray-700` | `#3A3A40` | Bolha da pergunta do usuário | 1,66:1 sobre `chat-canvas` |
+| `text-assistant` | `app-gray-100` | `#E1E1E6` | Texto da resposta (texto puro e markdown) | 11,11 (`chat-bubble-assistant`), 8,67 (código em `surface-raised`) |
 
 **Paleta `app-*`** (única fonte de hex; os componentes nunca usam `app-*` diretamente): `white` `#FFFFFF`, `black` `#000000`, `transparent`; `app-purple-400` `#A78BFA`, `app-purple-500` `#8257E6`, `app-purple-600` `#6B46C1`, `app-purple-900` `#581C87`; `app-green-500` `#04D361`; `app-gray-50` `#F8F8F8`, `app-gray-100` `#E1E1E6`, `app-gray-200` `#A8A8B3`, `app-gray-300` `#737380`, `app-gray-400` `#52525B`, `app-gray-500` `#414149`, `app-gray-600` `#3D3D44`, `app-gray-700` `#3A3A40`, `app-gray-800` `#29292E`, `app-gray-850` `#1F2729`, `app-gray-900` `#121214`. Fora da paleta do usuário, que não tem amarelo nem vermelho: `app-amber-300` `#F4B860` e `app-red-300` `#F17383` (os valores de `warning` e `danger` do tema anterior, usados no escuro) e `app-green-700` `#047A39`, `app-amber-700` `#8A5A00` e `app-red-700` `#B42335` (variantes do tema claro).
 
@@ -61,6 +65,40 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 
 `app-green-700`, `app-amber-700` e `app-red-700` são variantes escuras próprias, fora da paleta do usuário, definidas no `@theme` junto de `app-amber-300` e `app-red-300`.
 
+**Seção Chat (tarefa 8.17)**: o cabeçalho do chat ("Chat", "Nova conversa" e a dica) e o log usam `chat-canvas`, mais escuro que o `canvas` em dois passos; o formulário continua em `surface`. As respostas usam `chat-bubble-assistant` (com borda `border`) e texto `text-assistant`; as perguntas, `chat-bubble-user` com `text-primary`. Os cards de fonte (`SourceCard`), dentro do card da resposta, passam de `canvas` para `chat-canvas`, porque `canvas` sobre `chat-bubble-assistant` daria 1,05:1 no escuro; as cores de texto deles não mudam. Os `[n]` (`accent`) e o painel de fontes continuam como estavam. O `AlertBanner` de erro mantém o fundo `surface`.
+
+| Token | Claro | Escuro |
+| --- | --- | --- |
+| `chat-canvas` | `app-gray-100` `#E1E1E6` | `app-gray-900` `#121214` |
+| `chat-bubble-assistant` | `white` `#FFFFFF` | `app-gray-800` `#29292E` |
+| `chat-bubble-user` | `app-gray-50` `#F8F8F8` | `app-gray-700` `#3A3A40` |
+| `text-assistant` | `app-gray-900` `#121214` (igual a `text-primary`) | `app-gray-100` `#E1E1E6` |
+
+No claro, `surface-raised` (`#E1E1E6`, o fundo da bolha do usuário antes da 8.17) seria igual ao novo fundo; por isso a bolha ganhou o token próprio `chat-bubble-user`.
+
+Contrastes medidos (WCAG 2.x), claro / escuro:
+
+| Par | Claro | Escuro | Mínimo |
+| --- | --- | --- | --- |
+| `text-primary` (título "Chat") sobre `chat-canvas` | 14,36 | 18,71 | 4,5 |
+| `text-secondary` (dica, estado vazio, "Gerando resposta…") sobre `chat-canvas` | 7,76 | 7,94 | 4,5 |
+| `control-border` (botão "Nova conversa") sobre `chat-canvas` | 3,59 | 7,94 | 3 |
+| `focus` sobre `chat-canvas` | 4,93 | 6,88 | 3 |
+| `danger` (borda e ícone do erro) sobre `chat-canvas` | 4,99 | 6,70 | 3 (gráfico) |
+| `text-assistant` sobre `chat-bubble-assistant` | 18,71 | 11,11 | 4,5 |
+| `text-assistant` sobre código (`surface-raised`) | 14,36 | 8,67 | 4,5 |
+| `accent` (`[n]`) sobre `chat-bubble-assistant` | 6,42 | 5,32 | 4,5 |
+| `text-secondary` ("Fontes", citação em bloco) sobre `chat-bubble-assistant` | 10,11 | 6,15 | 4,5 |
+| `focus` (`[n]`) sobre `chat-bubble-assistant` | 6,42 | 5,32 | 3 |
+| `text-primary` sobre `chat-bubble-user` | 17,62 | 11,30 | 4,5 |
+| `text-primary` / `text-secondary` / `accent` / `focus` no `SourceCard` (`chat-canvas`) | 14,36 / 7,76 / 4,93 / 4,93 | 18,71 / 7,94 / 6,88 / 6,88 | 4,5 / 4,5 / 4,5 / 3 |
+| `chat-bubble-assistant` sobre `chat-canvas` | 1,30 | 1,29 | decorativo |
+| `chat-bubble-user` sobre `chat-canvas` | 1,23 | 1,66 | decorativo |
+| `SourceCard` (`chat-canvas`) sobre `chat-bubble-assistant` | 1,30 | 1,29 | decorativo |
+| `border` dos cards sobre `chat-canvas` / sobre `chat-bubble-assistant` | 1,81 / 2,36 | 1,74 / 1,34 | decorativo |
+
+Os cards de mensagem e de fonte não são controles: o limite de 3:1 (WCAG 1.4.11) vale para os controles dentro deles (`[n]`, "Mostrar trecho", anel de foco), que passam. A borda dos cards é decorativa, como no resto do app (`border`), e o card se separa do fundo pelo preenchimento.
+
 ## Tipografia, espaço e forma
 
 - Fonte Inter (arquivo local em `assets/fonts`), fallback `system-ui, sans-serif`.
@@ -89,8 +127,8 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 | `StatusBadge` | `status` | Texto + ícone + cor (ver [api.md](api.md#estados-do-documento)) |
 | `DocumentItem` | `document`, `selected` | Checkbox só para `ready`; botão "Remover" só com ícone de lixeira (`ghost`, `iconOnly`, `aria-label`/`title` "Remover {nome}", tarefa 7.28), sempre com diálogo de confirmação |
 | `ConfirmDialog` | `title`, `message`, `confirmLabel` | Foco preso, `Esc` cancela, ação perigosa em `danger` |
-| `ChatMessage` | `role`, `content`, `sources` | Usuário à direita em `surface-raised`; assistente à esquerda em `surface`; `[n]` clicável rola até a fonte |
-| `SourceCard` | `source`, `removed` | Arquivo, "Página n" (omitida se nula), trecho recolhível; com `removed`, etiqueta "Documento removido" (ícone + texto em `text-secondary`), sem esconder a fonte |
+| `ChatMessage` | `role`, `content`, `sources`, `markdown`, `interrupted` | Usuário à direita em `chat-bubble-user`; assistente à esquerda em `chat-bubble-assistant` com texto `text-assistant` (tarefa 8.17); `[n]` clicável rola até a fonte; parcial interrompido fecha a marcação markdown pendente só na renderização (tarefa 8.16) |
+| `SourceCard` | `source`, `removed` | Fundo `chat-canvas` (tarefa 8.17). Arquivo, "Página n" (omitida se nula), trecho recolhível; com `removed`, etiqueta "Documento removido" (ícone + texto em `text-secondary`), sem esconder a fonte |
 | `AlertBanner` | `info`, `success`, `warning`, `error` | Ícone + texto; `role='alert'` só para erro |
 
 ## Acessibilidade

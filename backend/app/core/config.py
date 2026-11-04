@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     max_documents_per_query: int = Field(default=10, ge=MIN_DOCUMENTS_PER_QUERY)
     excerpt_max_chars: int = Field(default=500, gt=0)
 
+    # Conversation history (PRD §13): at most `2 * max_history_turns`
+    # messages and `max_history_chars` characters summed over their content.
+    max_history_turns: int = Field(default=4, ge=0)
+    max_history_chars: int = Field(default=4000, ge=0)
+    # Task 8.3: rewrite follow-up questions before retrieval (needs history).
+    query_rewrite_enabled: bool = True
+
     # Storage
     chroma_collection: str = 'documents'
     documents_dir: Path = Path('data/documents')

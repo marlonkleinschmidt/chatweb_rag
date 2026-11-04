@@ -1,4 +1,4 @@
-"""Question answering over the selected documents (PRD §6.2)."""
+"""Question answering over the selected documents (PRD §6.2, §13)."""
 
 import html
 import logging
@@ -6,6 +6,7 @@ import re
 import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.documents import Document as LCDocument
@@ -14,13 +15,22 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app import db
-from app.core.config import settings
+from app.core.config import MIN_QUESTION_CHARS, settings
 from app.core.errors import AppError, ErrorCode
-from app.schemas.chat import ChatRequest, ChatResponse, ChatStreamRequest, Source
+from app.schemas.chat import (
+    ChatHistoryMessage,
+    ChatRequest,
+    ChatResponse,
+    ChatStreamRequest,
+    Source,
+)
 from app.services.document_service import get_vector_store, provider_error_code
 from app.services.prompts import (
     ANSWER_NO_SOURCES_PROMPT_V1,
+    ANSWER_NO_SOURCES_PROMPT_V2,
     ANSWER_PROMPT_V2,
+    ANSWER_PROMPT_V3,
+    QUERY_REWRITE_PROMPT_V1,
     QUESTION_PROMPT_V1,
 )
 
@@ -44,14 +54,26 @@ SENTENCE_END = '.'
 READY_STATUS = 'ready'
 # One retry on provider calls (PRD §6.2).
 PROVIDER_MAX_RETRIES = 1
+# The query rewrite has a cheap fallback (the original question), so it is
+# never retried (PRD §13.4).
+REWRITE_MAX_RETRIES = 0
 # Matches `<trecho` and `</trecho` in any case, so chunk text cannot open or close
 # a context block (prompt injection defence, PRD §6.3).
 TRECHO_TAG_PATTERN = re.compile(r'</?trecho', re.IGNORECASE)
+# With history (PRD §13.6), `<historico`/`</historico` are neutralised as well,
+# so neither the history nor a chunk can open or close the history block.
+HISTORY_PATH_TAG_PATTERN = re.compile(r'</?(?:trecho|historico)', re.IGNORECASE)
 # Citation-like markers the model may write in its texts, such as `[3]`, `[1, 2]`
 # or `[1-3]`. They are removed: only the code writes markers (RF-12).
 MODEL_MARKER_PATTERN = re.compile(r'\[\s*\d+(?:\s*[,;\-–]\s*\d+)*\s*\]')
 WHITESPACE_PATTERN = re.compile(r'\s+')
 SPACE_BEFORE_PUNCTUATION_PATTERN = re.compile(r'\s+([.,;:!?…])')
+# A `[n]` marker of a previous answer plus the spaces or tabs before it, so
+# `texto [1].` becomes `texto.` (newlines of markdown answers are kept).
+HISTORY_MARKER_PATTERN = re.compile(r'[ \t]*' + MODEL_MARKER_PATTERN.pattern)
+# How each history message is labelled inside the `<historico>` block.
+HISTORY_ROLE_LABELS = {'user': 'Usuário', 'assistant': 'Assistente'}
+HISTORY_MESSAGE_SEPARATOR = '\n\n'
 # Final punctuation kept after a claim's markers: `texto.` -> `texto [1].`
 TRAILING_PUNCTUATION_PATTERN = re.compile(r'[.!?…]+$')
 # Dropped from the end of a claim or missing part before the code adds its own.
@@ -64,6 +86,20 @@ _PROMPT = ChatPromptTemplate.from_messages(
 # Streaming path: prose answer, no structured output (PRD §12.7).
 _STREAM_PROMPT = ChatPromptTemplate.from_messages(
     [('system', ANSWER_NO_SOURCES_PROMPT_V1), ('human', QUESTION_PROMPT_V1)]
+)
+
+# History-aware versions (PRD §13.7 step 4), used only when the request carries
+# history; the human message is still the ORIGINAL question (§13.8, decision 5).
+_PROMPT_WITH_HISTORY = ChatPromptTemplate.from_messages(
+    [('system', ANSWER_PROMPT_V3), ('human', QUESTION_PROMPT_V1)]
+)
+_STREAM_PROMPT_WITH_HISTORY = ChatPromptTemplate.from_messages(
+    [('system', ANSWER_NO_SOURCES_PROMPT_V2), ('human', QUESTION_PROMPT_V1)]
+)
+
+# Query rewrite (PRD §13.7 step 2): plain text output, used only for retrieval.
+_REWRITE_PROMPT = ChatPromptTemplate.from_messages(
+    [('system', QUERY_REWRITE_PROMPT_V1), ('human', QUESTION_PROMPT_V1)]
 )
 
 # SSE event payloads yielded by `stream_answer` (PRD §12.6); the route
@@ -96,6 +132,21 @@ class AssembledAnswer(BaseModel):
     valid_claims: int
     dropped_claims: int
     missing_parts: int
+
+
+@dataclass(frozen=True)
+class _QueryPlan:
+    """What the history changes in one query (PRD §13.7); no LangChain types.
+
+    `history_text` is empty when there is no usable history, and then every
+    prompt is exactly the one used without history (V2/V1).
+    """
+
+    retrieval_question: str
+    history_text: str = ''
+    history_turns: int = 0
+    rewritten: bool = False
+    rewrite_ms: int | None = None
 
 
 def _no_evidence() -> ChatResponse:
@@ -224,11 +275,129 @@ def _retrieve(question: str, document_ids: list[str]) -> list[LCDocument]:
     return [doc for doc, _ in merged]
 
 
-def _clean_chunk_text(text: str) -> str:
-    """Remove `<trecho`/`</trecho` until none is left (removal may form new ones)."""
-    while TRECHO_TAG_PATTERN.search(text):
-        text = TRECHO_TAG_PATTERN.sub('', text)
+def _clean_chunk_text(text: str, pattern: re.Pattern[str] = TRECHO_TAG_PATTERN) -> str:
+    """Remove `<trecho`/`</trecho` (or every tag `pattern` matches) until none is
+    left: a removal may form a new tag."""
+    while pattern.search(text):
+        text = pattern.sub('', text)
     return text
+
+
+def _clean_history_text(text: str) -> str:
+    """Neutralise one history message before it goes into a prompt (PRD §13.6).
+
+    Removes `<historico`/`</historico` and `<trecho`/`</trecho` tags and the
+    `[n]` markers of previous answers, so the model cannot reuse an old
+    numbering, and repeats until nothing changes: removing a marker may form a
+    tag (`<tre[1]cho`) and removing a tag may form a marker.
+    """
+    while True:
+        cleaned = HISTORY_MARKER_PATTERN.sub(
+            '', _clean_chunk_text(text, HISTORY_PATH_TAG_PATTERN)
+        )
+        if cleaned == text:
+            return text.strip()
+        text = cleaned
+
+
+def _build_history(history: list[ChatHistoryMessage]) -> str:
+    """The cleaned history, one labelled message per paragraph, oldest first.
+
+    Messages left empty by the cleaning are skipped; when none is left the
+    result is empty and the query runs as if there were no history.
+    """
+    messages = []
+    for message in history:
+        content = _clean_history_text(message.content)
+        if content:
+            messages.append(f'{HISTORY_ROLE_LABELS[message.role]}: {content}')
+    return HISTORY_MESSAGE_SEPARATOR.join(messages)
+
+
+def _history_turns(history: list[ChatHistoryMessage]) -> int:
+    """Number of exchanges for the log: messages / 2, rounded up (PRD §13.4).
+
+    Matches the `2 x MAX_HISTORY_TURNS` message limit and is 0 only for an
+    empty history.
+    """
+    return (len(history) + 1) // 2
+
+
+def _ask_rewrite_model(question: str, history: str) -> str:
+    """Call the chat model once (no retry) for the standalone question.
+
+    Exceptions propagate unchanged; `_rewrite_question` turns every failure
+    into the fallback to the original question.
+    """
+    model = ChatOpenAI(
+        model=settings.chat_model,
+        api_key=settings.openai_api_key,
+        temperature=settings.chat_temperature,
+        timeout=settings.provider_timeout_s,
+        max_retries=REWRITE_MAX_RETRIES,
+    )
+    message = (_REWRITE_PROMPT | model).invoke(
+        {'history': history, 'question': question}
+    )
+    content = getattr(message, 'content', None)
+    return content if isinstance(content, str) else ''
+
+
+def _rewrite_question(question: str, history: list[ChatHistoryMessage]) -> str:
+    """Task 8.3: the question as a standalone one, for retrieval only.
+
+    Returns `question` unchanged, without calling the model, when the history
+    is empty (after cleaning) or `QUERY_REWRITE_ENABLED=false`. A failure, a
+    timeout or an invalid output (empty or outside 3..`MAX_QUESTION_CHARS`
+    after `strip`) also returns the original question: the rewrite is an
+    improvement, never a reason to fail the query (PRD §13.8, decision 3).
+    Logs carry only the `error_code`, never any text.
+    """
+    history_text = _build_history(history)
+    if not history_text or not settings.query_rewrite_enabled:
+        return question
+    try:
+        output = _ask_rewrite_model(question, history_text)
+    except Exception as exc:
+        code = provider_error_code(exc) or ErrorCode.PROVIDER_ERROR
+        logger.warning(
+            'query_rewrite_failed reason=provider error_code=%s exc_type=%s',
+            code.value,
+            type(exc).__name__,
+        )
+        return question
+    rewritten = output.strip() if isinstance(output, str) else ''
+    if not MIN_QUESTION_CHARS <= len(rewritten) <= settings.max_question_chars:
+        logger.warning(
+            'query_rewrite_failed reason=invalid_output error_code=%s output_chars=%d',
+            ErrorCode.PROVIDER_ERROR.value,
+            len(rewritten),
+        )
+        return question
+    return rewritten
+
+
+def _plan_query(request: ChatRequest) -> _QueryPlan:
+    """Steps before retrieval (PRD §13.7): history cleaning and rewrite.
+
+    `rewritten` is true when the question used in retrieval differs from the
+    original one (a successful rewrite that returned the question unchanged
+    counts as not rewritten); `rewrite_ms` is set whenever the rewrite was
+    attempted, including a fallback.
+    """
+    history_text = _build_history(request.history)
+    turns = _history_turns(request.history)
+    if not history_text or not settings.query_rewrite_enabled:
+        return _QueryPlan(request.question, history_text, turns)
+    started = time.monotonic()
+    question = _rewrite_question(request.question, request.history)
+    return _QueryPlan(
+        retrieval_question=question,
+        history_text=history_text,
+        history_turns=turns,
+        rewritten=question != request.question,
+        rewrite_ms=int((time.monotonic() - started) * 1000),
+    )
 
 
 def _page(metadata: dict[str, Any]) -> int | None:
@@ -239,8 +408,13 @@ def _page(metadata: dict[str, Any]) -> int | None:
     return None
 
 
-def _build_context(chunks: list[LCDocument]) -> str:
-    """Step 5: number chunks 1..n in the PRD §6.3 `<trecho>` format."""
+def _build_context(chunks: list[LCDocument], with_history: bool = False) -> str:
+    """Step 5: number chunks 1..n in the PRD §6.3 `<trecho>` format.
+
+    With history, `<historico` tags are removed from the chunks too, so a PDF
+    cannot close the history block; without it the context is unchanged.
+    """
+    pattern = HISTORY_PATH_TAG_PATTERN if with_history else TRECHO_TAG_PATTERN
     blocks = []
     for index, chunk in enumerate(chunks, start=1):
         filename = html.escape(str(chunk.metadata.get('filename', '')), quote=True)
@@ -248,14 +422,18 @@ def _build_context(chunks: list[LCDocument]) -> str:
         blocks.append(
             f'<trecho id="{index}" arquivo="{filename}" '
             f'pagina="{page if page is not None else ""}">\n'
-            f'{_clean_chunk_text(chunk.page_content).strip()}\n'
+            f'{_clean_chunk_text(chunk.page_content, pattern).strip()}\n'
             '</trecho>'
         )
     return '\n\n'.join(blocks)
 
 
-def _ask_model(question: str, context: str) -> AnswerOutput | None:
-    """Step 6: call the chat model with structured output."""
+def _ask_model(question: str, context: str, history: str = '') -> AnswerOutput | None:
+    """Step 6: call the chat model with structured output.
+
+    With `history`, `ANSWER_PROMPT_V3` is used; without it, `ANSWER_PROMPT_V2`
+    with exactly the same input as before the history existed.
+    """
     model = ChatOpenAI(
         model=settings.chat_model,
         api_key=settings.openai_api_key,
@@ -263,9 +441,13 @@ def _ask_model(question: str, context: str) -> AnswerOutput | None:
         timeout=settings.provider_timeout_s,
         max_retries=PROVIDER_MAX_RETRIES,
     )
-    chain = _PROMPT | model.with_structured_output(AnswerOutput, method='json_schema')
+    prompt = _PROMPT_WITH_HISTORY if history else _PROMPT
+    values = {'context': context, 'question': question}
+    if history:
+        values['history'] = history
+    chain = prompt | model.with_structured_output(AnswerOutput, method='json_schema')
     try:
-        result = chain.invoke({'context': context, 'question': question})
+        result = chain.invoke(values)
     except Exception as exc:
         # Includes unparsable or refused structured output: the provider did not
         # answer correctly.
@@ -465,7 +647,9 @@ def _missing_part(text: str) -> str:
 
 
 def _assemble_answer(
-    output: AnswerOutput | None, chunk_count: int, show_sources: bool = True
+    output: AnswerOutput | None,
+    chunk_count: int,
+    show_sources: bool = True,
 ) -> AssembledAnswer | None:
     """Steps 7-8: write the answer from the claims, or None for the fixed answer.
 
@@ -541,14 +725,18 @@ def _log_query(
     stream: bool = False,
     first_token_ms: int | None = None,
     has_evidence: bool | None = None,
+    plan: _QueryPlan | None = None,
 ) -> None:
-    """Log only IDs, counts, flags and duration (never question or answer)."""
+    """Log only IDs, counts, flags and duration (never question, history,
+    rewritten question or answer)."""
     if has_evidence is None:
         has_evidence = assembled is not None
     message = (
         'query_done document_ids=%s chunk_count=%d llm_called=%s '
         'model_has_evidence=%s has_evidence=%s cited_count=%d valid_claims=%d '
-        'dropped_claims=%d missing_parts=%d show_sources=%s stream=%s'
+        'dropped_claims=%d missing_parts=%d '
+        'show_sources=%s stream=%s '
+        'history_turns=%d rewritten=%s rewrite_ms=%s'
     )
     args: tuple[object, ...] = (
         ','.join(document_ids),
@@ -562,6 +750,9 @@ def _log_query(
         assembled.missing_parts if assembled else 0,
         show_sources,
         stream,
+        plan.history_turns if plan else 0,
+        plan.rewritten if plan else False,
+        plan.rewrite_ms if plan else None,
     )
     if first_token_ms is not None:
         # Only the streaming path measures the time to the first delta.
@@ -574,6 +765,10 @@ def _log_query(
 
 def answer_question(request: ChatRequest) -> ChatResponse:
     """Answer one independent question using only the selected documents.
+
+    With history, the question is first rewritten for retrieval and the
+    history goes to the answer prompt as data (PRD §13.7); layer 1 is decided
+    on the chunks retrieved for the rewritten question.
 
     Applies the two-layer evidence rule (PRD §6.2); when it fails, returns the
     fixed RF-14 answer with `has_evidence=False` and no sources. A partial answer
@@ -593,7 +788,8 @@ def answer_question(request: ChatRequest) -> ChatResponse:
     _ensure_ready(document_ids)
     _ensure_provider_configured()
 
-    chunks = _retrieve(request.question, document_ids)
+    plan = _plan_query(request)
+    chunks = _retrieve(plan.retrieval_question, document_ids)
     if not chunks:
         # Layer 1: nothing relevant enough, so the model is not called.
         _log_query(
@@ -603,10 +799,18 @@ def answer_question(request: ChatRequest) -> ChatResponse:
             None,
             None,
             show_sources=request.show_sources,
+            plan=plan,
         )
         return _no_evidence()
 
-    output = _ask_model(request.question, _build_context(chunks))
+    # The ORIGINAL question is answered (PRD §13.8, decision 5); the history
+    # argument is passed only when there is one, so a query without history
+    # calls the model exactly as before.
+    context = _build_context(chunks, with_history=bool(plan.history_text))
+    if plan.history_text:
+        output = _ask_model(request.question, context, plan.history_text)
+    else:
+        output = _ask_model(request.question, context)
     assembled = _assemble_answer(output, len(chunks), request.show_sources)
     _log_query(
         started,
@@ -615,6 +819,7 @@ def answer_question(request: ChatRequest) -> ChatResponse:
         output,
         assembled,
         show_sources=request.show_sources,
+        plan=plan,
     )
     if assembled is None:
         # Layer 2: the model reported no evidence or no claim has valid citations.
@@ -633,8 +838,11 @@ def answer_question(request: ChatRequest) -> ChatResponse:
     )
 
 
-def _stream_model(question: str, context: str) -> Iterator[str]:
+def _stream_model(question: str, context: str, history: str = '') -> Iterator[str]:
     """Stream the no-sources answer as text pieces (PRD §12.7).
+
+    With `history`, `ANSWER_NO_SOURCES_PROMPT_V2` is used; without it,
+    `ANSWER_NO_SOURCES_PROMPT_V1` with exactly the same input as before.
 
     Provider failures are mapped to `AppError` from inside the returned
     generator; closing it (for example when the client disconnects) closes the
@@ -647,8 +855,11 @@ def _stream_model(question: str, context: str) -> Iterator[str]:
         timeout=settings.provider_timeout_s,
         max_retries=PROVIDER_MAX_RETRIES,
     )
-    chain = _STREAM_PROMPT | model
-    stream = chain.stream({'context': context, 'question': question})
+    prompt = _STREAM_PROMPT_WITH_HISTORY if history else _STREAM_PROMPT
+    values = {'context': context, 'question': question}
+    if history:
+        values['history'] = history
+    stream = (prompt | model).stream(values)
     try:
         for event in stream:
             if isinstance(event.content, str) and event.content:
@@ -660,7 +871,7 @@ def _stream_model(question: str, context: str) -> Iterator[str]:
 
 
 def _no_evidence_events(
-    document_ids: list[str], started: float
+    document_ids: list[str], started: float, plan: _QueryPlan
 ) -> Iterator[StreamEvent]:
     """Layer 1 in the streaming path: the fixed answer, model never called."""
     first_token_ms = int((time.monotonic() - started) * 1000)
@@ -674,6 +885,7 @@ def _no_evidence_events(
         show_sources=False,
         stream=True,
         first_token_ms=first_token_ms,
+        plan=plan,
     )
     yield {'type': 'done', 'has_evidence': False}
 
@@ -684,6 +896,7 @@ def _generation_events(
     document_ids: list[str],
     chunk_count: int,
     started: float,
+    plan: _QueryPlan,
 ) -> Iterator[StreamEvent]:
     """Stream the answer deltas (filtered) and exactly one final `done` event.
 
@@ -692,7 +905,10 @@ def _generation_events(
     """
     marker_filter = _MarkerStreamFilter()
     first_token_ms: int | None = None
-    model_stream = _stream_model(question, context)
+    if plan.history_text:
+        model_stream = _stream_model(question, context, plan.history_text)
+    else:
+        model_stream = _stream_model(question, context)
     try:
         for piece in model_stream:
             text = marker_filter.feed(piece)
@@ -734,6 +950,7 @@ def _generation_events(
         stream=True,
         first_token_ms=first_token_ms,
         has_evidence=True,
+        plan=plan,
     )
     yield {'type': 'done', 'has_evidence': True}
 
@@ -741,7 +958,8 @@ def _generation_events(
 def stream_answer(request: ChatStreamRequest) -> Iterator[StreamEvent]:
     """Stream a no-sources answer for one question (PRD §12.6, §12.7).
 
-    A regular function, not a generator: validation and retrieval run eagerly,
+    A regular function, not a generator: validation, the query rewrite (with
+    history, PRD §13.7) and retrieval run eagerly,
     so `document_not_ready` (409) and retrieval failures/timeouts (502/504)
     are raised BEFORE the stream starts. Only then is the event generator
     returned. Layer 1 still decides in code: without a relevant chunk the
@@ -757,9 +975,16 @@ def stream_answer(request: ChatStreamRequest) -> Iterator[StreamEvent]:
     _ensure_ready(document_ids)
     _ensure_provider_configured()
 
-    chunks = _retrieve(request.question, document_ids)
+    # The rewrite (with history) runs here too, before the stream opens.
+    plan = _plan_query(request)
+    chunks = _retrieve(plan.retrieval_question, document_ids)
     if not chunks:
-        return _no_evidence_events(document_ids, started)
+        return _no_evidence_events(document_ids, started, plan)
     return _generation_events(
-        request.question, _build_context(chunks), document_ids, len(chunks), started
+        request.question,
+        _build_context(chunks, with_history=bool(plan.history_text)),
+        document_ids,
+        len(chunks),
+        started,
+        plan,
     )

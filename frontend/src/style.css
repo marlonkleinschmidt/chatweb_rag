@@ -74,6 +74,11 @@
   --color-success: var(--theme-success);
   --color-warning: var(--theme-warning);
   --color-danger: var(--theme-danger);
+  /* Chat section (task 8.17): darker background for the chat and its own message bubbles. */
+  --color-chat-canvas: var(--theme-chat-canvas);
+  --color-chat-bubble-assistant: var(--theme-chat-bubble-assistant);
+  --color-chat-bubble-user: var(--theme-chat-bubble-user);
+  --color-text-assistant: var(--theme-text-assistant);
 }
 
 /* Layout tokens (PRD §9.2). */
@@ -120,6 +125,10 @@
     --theme-success: var(--color-app-green-700);
     --theme-warning: var(--color-app-amber-700);
     --theme-danger: var(--color-app-red-700);
+    --theme-chat-canvas: var(--color-app-gray-100);
+    --theme-chat-bubble-assistant: var(--color-white);
+    --theme-chat-bubble-user: var(--color-app-gray-50);
+    --theme-text-assistant: var(--color-app-gray-900);
   }
 
   /* Dark theme (class `dark` on <html>). */
@@ -141,6 +150,10 @@
     --theme-success: var(--color-app-green-500);
     --theme-warning: var(--color-app-amber-300);
     --theme-danger: var(--color-app-red-300);
+    --theme-chat-canvas: var(--color-app-gray-900);
+    --theme-chat-bubble-assistant: var(--color-app-gray-800);
+    --theme-chat-bubble-user: var(--color-app-gray-700);
+    --theme-text-assistant: var(--color-app-gray-100);
   }
 
   body {

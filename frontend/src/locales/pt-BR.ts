@@ -81,6 +81,15 @@ export const ptBR = {
     assistantLabel: 'Assistente:',
     sources: 'Fontes',
     citeLabel: (index: number) => `Ir para a fonte ${index}`,
+    // Conversation context (RF-28).
+    newConversation: 'Nova conversa',
+    conversationHint: 'As próximas perguntas consideram as mensagens anteriores desta conversa.',
+  },
+  newConversationDialog: {
+    title: 'Começar uma nova conversa?',
+    message:
+      'As mensagens desta conversa serão apagadas da tela e deste navegador. Essa ação não pode ser desfeita.',
+    confirm: 'Limpar conversa',
   },
   sources: {
     label: (index: number) => `Fonte ${index}`,
