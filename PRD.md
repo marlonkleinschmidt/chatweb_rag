@@ -1,4 +1,4 @@
-# PRD — Assistente RAG para documentos (v2.1)
+# PRD — Assistente RAG para documentos (v2.2)
 
 Nov 3, 2026 · @Marlon Kleinschmidt
 
@@ -25,6 +25,8 @@ A v2.1 troca escolhas abertas ("se necessário", "quando aplicável") por decis�
 **Ajustes durante a implementação (Sprint 2, aprovados pelo usuário):** campo `warning` na resposta do upload (RF-01) e campo `embedding_model_changed` na lista de documentos (§8.3). Ver §5.1.
 
 **Ajustes durante a implementação (Sprint 4, pedidos pelo usuário):** nova paleta de cores `app-*` (§9.1) e escolha entre tema claro e escuro (RF-19, §9.4).
+
+**Ajustes da v2.2 (3 de novembro de 2026):** nova funcionalidade pós-MVP — exibição opcional das fontes com streaming da resposta em markdown (§12; RF-20 a RF-24; US-10 a US-13; Sprint 7). O streaming de tokens, listado como fora de escopo na §2.2, passa a existir exclusivamente no modo sem fontes.
 
 ## 1. Instruções para agentes de implementação
 
@@ -76,7 +78,7 @@ O MVP é uma aplicação web local onde o usuário envia PDFs, faz perguntas e r
 | Autenticação, permissões, multiusuário | Fora do MVP |
 | Histórico de chat persistente e memória conversacional | Fora do MVP |
 | OCR, formatos além de PDF, CSV | Fora do MVP |
-| Streaming de tokens, voz, agentes com ferramentas | Fora do MVP |
+| Streaming de tokens, voz, agentes com ferramentas | Streaming de tokens reavaliado na v2.2: existe só no modo sem fontes (§12); voz e agentes com ferramentas seguem fora |
 | Filas, microserviços, Kubernetes, alta disponibilidade | Fora do MVP |
 | Testes automatizados e Docker | Sprint 6 |
 | Exposição pública na internet | Não suportada até decisão em §11.3 |
@@ -100,6 +102,7 @@ Cada valor abaixo é o default inicial, lido do ambiente com o nome indicado. Mu
 | Tamanho da pergunta | 3 a 2.000 caracteres | `MAX_QUESTION_CHARS` |
 | Documentos por consulta | 1 a 10 | `MAX_DOCUMENTS_PER_QUERY` |
 | Trecho exibido por fonte | até 500 caracteres | `EXCERPT_MAX_CHARS` |
+| Exibição das fontes na resposta | Visíveis (`show_sources: true`) | — (preferência por navegador, §12.6) |
 | Fuso de exibição | `America/Sao_Paulo`, formato `dd/MM/yyyy HH:mm` | — |
 | Armazenamento de datas | UTC, ISO 8601 com `Z` | — |
 | Coleção Chroma | `documents` | `CHROMA_COLLECTION` |
@@ -111,7 +114,7 @@ A escolha de `BackgroundTasks` evita timeout HTTP em PDFs grandes sem introduzir
 
 ## 4. Requisitos funcionais
 
-Cada requisito tem um critério de verificação manual ("Verificar"), usado nas sprints iniciais e convertido em teste na Sprint 6.
+Cada requisito tem um critério de verificação manual ("Verificar"), usado nas sprints iniciais e convertido em teste na Sprint 6. A funcionalidade pós-MVP de exibição opcional das fontes define os RF-20 a RF-24 na §12.
 
 ### 4.1 Documentos
 
@@ -198,6 +201,7 @@ Todos os endpoints ficam sob `/api/v1`, trocam JSON (exceto o upload multipart) 
 | GET | `/documents/{document_id}` | `200` + `Document` | `404` |
 | DELETE | `/documents/{document_id}` | `204` | `404`, `409`, `500` |
 | POST | `/chat/query` | `200` + `ChatResponse` | `422`, `409`, `502`, `504` |
+| POST | `/chat/query/stream` | `200` `text/event-stream` (§12.6) | `422`, `409`, `502`, `504` |
 
 **`Document`**
 
@@ -248,7 +252,7 @@ A lista (`DocumentListResponse`) traz `embedding_model_changed`: `true` quando e
 }
 ```
 
-`index` corresponde ao marcador `[n]` em `answer`. `page` pode ser `null`. Se algum `document_id` não existir ou não estiver `ready`, a API retorna `409 document_not_ready` sem consultar o modelo.
+`index` corresponde ao marcador `[n]` em `answer`. `page` pode ser `null`. Se algum `document_id` não existir ou não estiver `ready`, a API retorna `409 document_not_ready` sem consultar o modelo. O campo opcional `show_sources` (v2.2, default `true`, §12.6): com `false`, `answer` vem sem marcadores `[n]` e `sources` volta `[]`, mantendo a regra de evidência da §6.2.
 
 ### 5.2 Máquina de estados do documento
 
@@ -296,6 +300,7 @@ stateDiagram-v2
 | `document_processing` | 409 | Aguarde o fim do processamento para remover este documento. |
 | `document_not_ready` | 409 | Um ou mais documentos selecionados não estão prontos. |
 | `question_invalid` | 422 | Escreva uma pergunta entre 3 e {n} caracteres. |
+| `stream_sources_unsupported` | 422 | Este modo de resposta não exibe fontes. Use a consulta comum para respostas com fontes. |
 | `provider_error` | 502 | O serviço de IA não respondeu corretamente. Tente novamente. |
 | `provider_timeout` | 504 | O serviço de IA demorou demais para responder. Tente novamente. |
 | `delete_partial` | 500 | Não foi possível concluir a remoção. Tente novamente. |
@@ -370,6 +375,10 @@ Antes de fechar a Sprint 3, montar um conjunto de 15 perguntas sobre os PDFs rea
 
 Ajustar `CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` com base nesse conjunto, um parâmetro por vez.
 
+### 6.5 Consulta sem fontes (v2.2)
+
+Com `show_sources=false`, o pipeline da §6.2 funciona igual até o passo 7; a montagem (passo 8) omite os marcadores `[n]` e `sources` volta vazia, mantendo as camadas de evidência. O modo streaming (`POST /chat/query/stream`) usa um prompt próprio em prosa (§12.7): a camada 1 continua decidida em código, a geração é `stream()` sem saída estruturada e a camada 2 não se aplica (não há citações a validar). Contrato, filtro de marcadores, decisões e riscos estão na §12.
+
 ## 7. Requisitos não funcionais
 
 ### 7.1 Simplicidade
@@ -403,6 +412,7 @@ Ajustar `CHUNK_SIZE`, `RETRIEVAL_K` e `RELEVANCE_THRESHOLD` com base nesse conju
 - Embeddings enviados em lotes (padrão do `langchain-openai`) para reduzir chamadas.
 - Toda falha externa vira estado ou erro do envelope (§5.3), nunca exceção não tratada.
 - Metas numéricas de latência: provisórias, definidas a partir das medições da Sprint 5 (§11.2).
+- Modo sem fontes em streaming (§12): log de `first_token_ms` por consulta; meta provisória de tempo até o primeiro token na §12.4.
 
 ### 7.5 Acessibilidade e responsividade
 
@@ -422,7 +432,7 @@ Nas Sprints 1–5, cada tarefa é verificada manualmente pelo critério "Verific
 
 | Camada | Escolha | Observação |
 | --- | --- | --- |
-| Frontend | Vue 3 (Composition API, `<script setup lang='ts'>`), Vite, Tailwind CSS, `fetch` | Sem Vue Router e sem Pinia no MVP (tela única) |
+| Frontend | Vue 3 (Composition API, `<script setup lang='ts'>`), Vite, Tailwind CSS, `fetch`, `markdown-it` (v2.2, §12.8) | Sem Vue Router e sem Pinia no MVP (tela única) |
 | Backend | Python 3.11 ou 3.12, FastAPI, Uvicorn, Pydantic Settings, `python-multipart`, `pypdf` | Versão exata registrada no README na tarefa 1.1.1 |
 | RAG | `langchain-core`, `langchain-openai`, `langchain-chroma`, `langchain-community`, `langchain-text-splitters` | Fixar versões exatas em `requirements.txt` (`==`); só dependências diretas |
 | Vetores | Chroma persistente local | Coleção única com filtro por `document_id` |
@@ -575,7 +585,7 @@ Classes Tailwind ficam nos templates; extrair para componente só quando o mesmo
 
 ## 10. Sprints e Definition of Done
 
-Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua Definition of Done (DoD). Tarefas `[humano]` exigem ação de uma pessoa e não podem ser feitas por agente. As user stories da v2.0 (US-01 a US-09) estão cobertas pelos critérios "Verificar" da §4 e pelas DoD abaixo.
+Os Sprints 1–6 formam o MVP e foram concluídos; a Sprint 7 adiciona a funcionalidade pós-MVP da §12 (v2.2) e segue as mesmas regras: cada sprint só começa quando a anterior cumpre sua Definition of Done (DoD), e tarefas `[humano]` exigem ação de uma pessoa e não podem ser feitas por agente. As user stories da v2.0 (US-01 a US-09) estão cobertas pelos critérios "Verificar" da §4 e pelas DoD abaixo; as da v2.2 (US-10 a US-13), pela §12.2.
 
 ### Sprint 1 — Base local
 
@@ -653,6 +663,51 @@ Seis sprints em sequência; cada uma só começa quando a anterior cumpre sua De
 
 **DoD:** `pytest` e `npm run test` passam; `docker compose up` sobe a aplicação com os dados persistindo após reinício.
 
+### Sprint 7 — Exibição opcional das fontes (PRD §12)
+
+**Backend**
+
+- [ ] 7.1 Campo `show_sources` e código de erro: `show_sources: bool = Field(default=True)` em `ChatRequest` e schema derivado `ChatStreamRequest` com default `False` (`backend/app/schemas/chat.py`); `STREAM_SOURCES_UNSUPPORTED` em `ErrorCode` (`backend/app/core/errors.py`, mensagem pt-BR e status 422 da §5.3); espelhar o campo em `frontend/src/types/api.ts` (`ChatRequest.show_sources: boolean`).
+  - Pronto quando: request sem o campo vale `true` no `/chat/query` (cliente existente inalterado) e `false` no `/chat/query/stream`, e o OpenAPI documenta os dois defaults.
+- [ ] 7.2 Resposta JSON sem marcadores em `backend/app/services/rag_service.py`: `answer_question` e `_assemble_answer` aceitam o modo sem fontes — claims válidos montados sem `[n]` (variante de `_claim_sentence`), parágrafos fixos (partes não encontradas, claims não vinculados) mantidos, `sources: []`; camadas 1 e 2 intactas.
+  - Pronto quando: `POST /chat/query` com `show_sources=false` devolve `answer` sem `\[\d+\]` e `sources: []`, e claims sem citação válida continuam descartados.
+- [ ] 7.3 Prompt sem fontes: `ANSWER_NO_SOURCES_PROMPT_V1` em `backend/app/services/prompts.py` (novo) — regras de grounding e defesa contra prompt injection herdadas do `ANSWER_PROMPT_V2` (regras 1 e 5–8), resposta em texto corrido com formatação markdown simples (títulos curtos, negrito, itálico, listas, código em linha e em bloco; sem tabelas, links, imagens ou HTML) e sem marcadores `[n]`, parágrafo "Não encontrei nos documentos selecionados: …" para partes sem resposta; `ANSWER_PROMPT_V2` inalterado.
+  - Pronto quando: prompt versionado em uso e registro no README ("Decisões") com data e motivo.
+- [ ] 7.4 Filtro de marcadores em streaming em `rag_service.py`: classe `_MarkerStreamFilter` (nova) com `feed(text) -> str` e `flush() -> str`, reusando `MODEL_MARKER_PATTERN`, `WHITESPACE_PATTERN` e `SPACE_BEFORE_PUNCTUATION_PATTERN`; buffer retém o sufixo que pode ser início de marcador; colchete incompleto no `flush` permanece como texto literal; a limpeza de espaços duplos e espaço antes de pontuação é local aos pontos de remoção, preservando quebras de linha e listas do markdown.
+  - Pronto quando: a concatenação de todos os `feed` + `flush` equivale ao filtro aplicado ao texto completo, inclusive com `[` num chunk e `3]` no seguinte.
+- [ ] 7.5 Gerador de stream em `rag_service.py`: `stream_answer(request)` (nova) — validação e recuperação como na §6.2 (camada 1 devolve a resposta fixa como delta único), geração com `ChatOpenAI(...).stream` (sem `with_structured_output`) e o prompt da 7.3, deltas filtrados pela 7.4, um único `done` com `has_evidence`; falhas do provedor durante a geração viram `AppError` tratado pela rota.
+  - Pronto quando: o gerador emite deltas concatenáveis e exatamente um `done`; erros de validação/recuperação acontecem antes do primeiro evento.
+- [ ] 7.6 Endpoint `POST /chat/query/stream` em `backend/app/api/routes_chat.py`: recebe `ChatStreamRequest` (default `show_sources=false`) e rejeita `show_sources=true` explícito com `422 stream_sources_unsupported`; valida e recupera antes de abrir o stream (erros 409/502/504 como envelope JSON com status, §12.6); `StreamingResponse` com `text/event-stream` e `Cache-Control: no-cache`, eventos `delta`/`done`/`error`; desconexão do cliente encerra o gerador e a iteração do modelo (cancelamento real no backend, não só o cliente parando de ler); `query_done` ganha `show_sources`, `stream` e `first_token_ms` (sem conteúdo).
+  - Pronto quando: `curl -N` mostra os eventos na ordem e um erro na geração vira evento `error` seguido do fim da conexão.
+
+**Frontend**
+
+- [ ] 7.7 `streamChat()` em `frontend/src/services/api.ts`: `fetch` POST com `AbortSignal`; rejeita status/`Content-Type` inesperados como `UNEXPECTED_RESPONSE`; lê `response.body.getReader()` com `TextDecoder` em modo stream, faz parse dos eventos `data:` (buffer até `\n\n`) e chama `onDelta`/`onDone`; envelope `error` vira `ApiError` (antes e durante o stream).
+  - Pronto quando: eventos divididos entre chunks de rede e caracteres UTF-8 divididos são montados corretamente.
+- [ ] 7.8 Novo `frontend/src/composables/useShowSources.ts`: `showSources` (default `true`), persistência em `localStorage` na chave `show_sources` com try/catch, no padrão do `useTheme.ts` (RF-19).
+  - Pronto quando: a escolha sobrevive ao recarregamento e storage bloqueado não quebra o app.
+- [ ] 7.9 Toggle "Exibir fontes" no `frontend/src/components/domain/ChatPanel.vue`: checkbox nativo com label e hint (`locales/pt-BR.ts`: `chat.showSourcesLabel`, `chat.showSourcesHint`) junto ao formulário da pergunta; navegável por `Tab`, contraste AA nos dois temas, sem `dark:` nem `app-*`; todo envio leva `show_sources` explícito.
+  - Pronto quando: alternar o toggle muda o formato da próxima resposta e não afeta as anteriores da sessão (RF-20).
+- [ ] 7.10 Streaming no `frontend/src/composables/useChat.ts`: `send(question, documentIds, showSources)` (default `true`) escolhe `/chat/query` ou `/chat/query/stream`; no modo streaming a entrada de assistente nasce vazia e cresce a cada delta (mesmo `id`); `stop()` via `AbortController` mantém o parcial; erro no meio mantém o parcial e adiciona entrada de erro; botão "Parar" (`locales/pt-BR.ts`: `chat.stop`) com `BaseButton` no `ChatPanel.vue` durante a geração.
+  - Pronto quando: os testes atuais do `useChat` passam sem alteração de semântica (caminho com fontes) e os novos cobrem o caminho streaming.
+
+- [ ] 7.11 Renderização markdown segura no chat: dependência `markdown-it` (versão fixada no `frontend/package.json`, única nova da sprint, PRD §8.1); novo `frontend/src/components/domain/MarkdownText.vue` com `html: false`, `linkify: false` e regras de link e imagem desativadas — único `v-html` do app, exceção documentada ao "sem v-html" do `ChatMessage` (e ao lint `vue/no-v-html`, se o preset o ativar); `ChatEntry` de assistente ganha `markdown: boolean` (novo) em `useChat.ts`, `true` apenas no modo streaming; `ChatMessage.vue` usa `MarkdownText` quando `markdown` é `true`, re-processando o texto acumulado a cada delta, e mantém o caminho com fontes exatamente como hoje.
+  - Pronto quando: o subconjunto da §12.3 renderiza (lista, negrito, código), HTML cru aparece como texto, nenhum link ou imagem é renderizado e respostas com fontes continuam texto puro.
+
+**Testes**
+
+- [ ] 7.12 Pytest do filtro (novo `backend/tests/test_marker_filter.py`): `[1]` inteiro; `[` num chunk e `3]` no seguinte; `[1, 2]` e `[1-3]`; espaços duplos e espaço antes de pontuação após a remoção; `[anexo]` preservado; `[` solto no fim mantido; equivalência com o filtro aplicado ao texto completo; remoção de marcador preservando quebras de linha e listas do markdown (limpeza local).
+- [ ] 7.13 Pytest de endpoints: `/chat/query` sem fontes (fake retriever/LLM no padrão do `test_evidence_rule.py`, camadas 1 e 2); `/chat/query/stream` com fake no ponto de chamada ao modelo — eventos delta/done, omissão de `show_sources` → responde sem fontes, `show_sources=true` explícito → `422 stream_sources_unsupported`, `document_not_ready` → 409 JSON antes do stream, falha na geração → evento `error`, camada 1 → delta único + `done` com `has_evidence=false`.
+- [ ] 7.14 Vitest: `useShowSources` (default, persistência, storage bloqueado); `useChat` no modo streaming (deltas na mesma entrada, `markdown: true`, `stop`, erro no meio, payload com `show_sources: false` e sem histórico); parser do `streamChat` com helper de resposta SSE no `__tests__/testUtils` (evento dividido entre chunks, UTF-8 dividido); `MarkdownText` (subconjunto renderiza; `<script>`, atributos `on*` e HTML cru viram texto; `[x](javascript:...)` e imagens não renderizam; markdown parcial durante o streaming não quebra o render).
+- [ ] 7.15 Regressão opcional (com chave): estender `backend/tests/test_regression_eval.py` para rodar as 15 perguntas do `docs/eval.md` também com `show_sources=false` (JSON), comparar `has_evidence` e custo com o modo com fontes e registrar TTFT p50/p90 (`first_token_ms`) em execuções repetidas, para confirmar ou ajustar a meta provisória da §12.4.
+- [ ] 7.16 Verificação manual com Playwright MCP dos critérios "Verificar" de RF-20 a RF-24 e da §12.9: alternar o toggle nos dois sentidos, recarregar a página, observar o texto crescendo e o markdown renderizando, Parar, navegação por teclado e 360 px nos dois temas.
+
+**Documentação**
+
+- [ ] 7.17 Atualizar `docs/api.md` (endpoint novo, `show_sources`, eventos SSE com exemplos — incluindo que `delta.text` é markdown —, `stream_sources_unsupported`), o README ("Decisões": prompt novo, streaming, `markdown-it`, premissas da §12.8) e `docs/README.md` se o índice mudar.
+
+**DoD:** `pytest` e `npm run test` passam (junto com lint, format e `vue-tsc`); com o toggle ligado, comportamento e contrato idênticos aos atuais (texto puro com `[n]` e fontes); com o toggle desligado, a resposta renderizada não contém `\[\d+\]` nem painel de fontes, chega incrementalmente e é renderizada como markdown seguro (HTML cru nunca executa); a preferência persiste após recarregar; TTFT (`first_token_ms`) medido com o conjunto de avaliação e a meta da §12.4 confirmada ou ajustada; `docs/api.md` e README atualizados.
+
 ## 11. Riscos, métricas e decisões pendentes
 
 ### 11.1 Riscos e mitigações
@@ -680,6 +735,7 @@ As medições da tarefa 5.4 são uma **referência preliminar**: usam um PDF sin
 | Consultas com `has_evidence: true` | Log de `has_evidence` por consulta | A definir após 5.4 |
 | Respostas corretas e bem citadas | Revisão manual do conjunto §6.4 | ≥ 80% (DoD Sprint 3) |
 | Tempo de indexação por página e de resposta (p50) | Log de duração (`index_ready` e `query_done`, `duration_ms`) | Medido na 5.4: indexação 0,12 s/página; consulta com evidência 1,47 s; sem evidência 0,41 s. Meta provisória: indexação ≤ 0,5 s/página e consulta ≤ 3 s (p50) |
+| Tempo até o primeiro token no modo sem fontes (§12) | Log de `first_token_ms` no `query_done` | Provisória: p50 ≤ 2 s e p90 ≤ 4 s |
 | Custo por documento e por consulta | Tokens reportados pelo `langchain-openai` (chat) e contados com `tiktoken` (embeddings) | Medido na 5.4: ~US$ 0,00001/página e ~US$ 0,00026/consulta com evidência (estimativa). Meta provisória: ≤ US$ 0,001 por consulta |
 
 **Medições da Sprint 5 (tarefa 5.4).** Feitas em 3 de novembro de 2026, numa máquina Windows 11 local (Intel Core i5-1135G7, 8 GB de RAM), chamando `document_service` (`upload_document` + `index_document`) e `rag_service.answer_question` diretamente, com dados numa pasta temporária (sem tocar em `backend/data`). Configuração: `CHAT_MODEL=gpt-4o-mini`, `EMBEDDING_MODEL=text-embedding-3-small`, `CHUNK_SIZE=500`, `CHUNK_OVERLAP=200`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`. PDF sintético em pt-BR de 10 páginas (10,8 KB, cerca de 1.230 caracteres de texto por página, 39 chunks), indexado 20 vezes. Consultas filtradas por 1 documento: 20 com evidência (10 perguntas, 2 vezes cada; todas com `has_evidence: true`) e 10 sem evidência (5 perguntas fora do tema, 2 vezes cada; todas barradas pela camada 1, sem chamada ao LLM). Durações medidas em volta da função, incluindo a latência de rede até a OpenAI.
@@ -720,3 +776,156 @@ Notas sobre o custo:
 | 8 | PDFs digitalizados exigem OCR? | Não; rejeitados com `pdf_no_text` |
 
 Até essas respostas existirem, o MVP permanece local, sequencial e simples, com Chroma, SQLite e arquivos em disco.
+
+## 12. Exibição opcional das fontes e streaming da resposta (v2.2)
+
+Funcionalidade pós-MVP (Sprint 7). O usuário pode ocultar as fontes dos dados: a resposta passa a ser texto contínuo, sem marcadores `[n]` e sem a lista de trechos, e chega por streaming, renderizada incrementalmente. Com fontes visíveis, nada muda em relação à §4.2, §5.1 e §6.2.
+
+### 12.1 Objetivo e motivação
+
+Para leitura rápida, os marcadores `[n]` e o painel de trechos são ruído; e a resposta demora cerca de 1,5 s (§11.2) sem nenhum feedback no meio. Ocultar as fontes permite uma resposta limpa, e o streaming traz os primeiros tokens antes de a geração terminar, melhorando a percepção de velocidade. A rastreabilidade continua disponível: basta religar o controle e a próxima resposta volta a citar. No modo sem fontes o modelo escreve texto corrido, então a resposta também ganha formatação markdown (listas, negrito, código), que ajuda a ler respostas com vários passos ou valores.
+
+### 12.2 Histórias de usuário
+
+| ID | História | Requisitos |
+| --- | --- | --- |
+| US-10 | Como usuário, quero desligar a exibição das fontes para ler a resposta como texto contínuo, sem marcadores nem lista de trechos. | RF-20, RF-21 |
+| US-11 | Como usuário com fontes ocultas, quero ver a resposta sendo escrita aos poucos, em vez de esperar a geração completa sem feedback. | RF-22 |
+| US-12 | Como usuário, quero interromper uma geração em andamento quando o que já chegou me bastar. | RF-23 |
+| US-13 | Como usuário com fontes ocultas, quero a resposta formatada em markdown (listas, negrito, código), para ler respostas com vários passos mais rápido. | RF-24 |
+
+### 12.3 Requisitos funcionais
+
+| ID | Requisito | Verificar |
+| --- | --- | --- |
+| RF-20 Toggle de fontes | Controle "Exibir fontes" no chat, padrão ligado, persiste por navegador (`localStorage`, chave `show_sources`, com fallback silencioso se o storage falhar). Afeta apenas as novas perguntas; respostas anteriores da sessão mantêm as fontes que tiveram. Toda consulta envia `show_sources` explícito | Recarregar mantém a escolha; primeira visita vem ligado; entradas antigas não mudam |
+| RF-21 Resposta sem fontes | Com o controle desligado, a resposta não contém marcadores `[n]` nem painel/lista de fontes. Mantém o texto fixo de RF-14 quando não há evidência e o parágrafo "Não encontrei nos documentos selecionados: …" para partes sem resposta | Nenhuma ocorrência de `\[\d+\]` no texto renderizado; nenhum card de fonte |
+| RF-22 Streaming | Com fontes ocultas, a resposta chega por SSE (`POST /chat/query/stream`) e é renderizada incrementalmente; o fim é sinalizado por `done`. Erro no meio do stream mantém o texto parcial e mostra banner de erro pt-BR com `code` estável | O primeiro trecho de texto aparece antes de a geração terminar; erro simulado no meio mostra o banner com a mensagem do envelope |
+| RF-23 Cancelamento | Botão "Parar" visível durante a geração interrompe o stream; o texto já recebido permanece; nenhum banner de erro | Após Parar, um novo envio é aceito imediatamente |
+| RF-24 Markdown no modo sem fontes | A resposta do `/chat/query/stream` é escrita pelo modelo em markdown e renderizada pelo frontend com subconjunto seguro: títulos, negrito, itálico, listas, código em linha e em bloco — sem links, imagens, tabelas ou HTML cru (`markdown-it` com `html: false` e regras de link/imagem desativadas; o texto do modelo é tratado como não confiável, §7.3). O caminho com fontes mantém texto puro, como hoje | Respostas do modo oculto aparecem formatadas (lista renderiza como lista, código como código); HTML enviado pelo modelo aparece como texto literal; respostas com fontes continuam idênticas |
+
+### 12.4 Requisitos não funcionais
+
+- **Tempo até o primeiro token (TTFT):** meta provisória p50 ≤ 2 s e p90 ≤ 4 s, medida pelo log `first_token_ms` (referência §11.2: recuperação p50 0,41 s + primeiro token do modelo). A meta só vira critério definitivo depois de confirmada — ou ajustada — com medições representativas na Sprint 7 (tarefa 7.15: PDFs reais, execuções repetidas), no espírito da §11.2.
+- Duração total do modo oculto comparável à do modo atual (§11.2); o streaming não pode piorar o p50 além da variância do provedor.
+- Única dependência nova da sprint: `markdown-it` (frontend, §8.1 e §12.8); o transporte não adiciona nenhuma — SSE via `StreamingResponse` (Starlette) no backend e `fetch` + `ReadableStream` no frontend; sem WebSocket e sem `EventSource` (não suporta POST).
+- Sem degradação de UI: render incremental reativo, sem travamento em 360 px; o `aria-live='polite'` do log é verificado para não anunciar a cada token (validado manualmente com leitor de tela).
+- Markdown incremental: o texto acumulado é re-processado pelo renderizador a cada delta (respostas curtas, sem jank em 360 px); a saída usa tags semânticas (listas, títulos) e mantém o contraste AA.
+- Acessibilidade do toggle: controle nativo (`input type='checkbox'`), navegável por `Tab`, contraste AA nos dois temas, sem `dark:` nem `app-*` no template.
+- Logs sem conteúdo: `query_done` ganha `show_sources`, `stream` e `first_token_ms`; nada de trecho, pergunta ou resposta.
+
+### 12.5 Fluxo do usuário
+
+```mermaid
+flowchart TD
+    A["Toggle Exibir fontes"] -->|ligado| B["POST /chat/query (JSON)"]
+    A -->|desligado| C["POST /chat/query/stream (SSE)"]
+    B --> D["Resposta com marcadores clicáveis e painel de fontes"]
+    C --> E{"Camada 1: há trecho relevante?"}
+    E -->|não| F["Delta único com o texto fixo de RF-14 + done"]
+    E -->|sim| G["Stream de tokens filtrados (markdown)"]
+    G --> H["Render incremental no chat"]
+    H -->|done| I["Fim da resposta"]
+    H -->|Parar| J["Aborta; mantém o parcial"]
+    G -->|falha| K["Evento error: parcial + banner pt-BR"]
+```
+
+### 12.6 Contrato da API
+
+**`ChatRequest` ganha `show_sources` (opcional, `bool`, default `true`).** Omitir o campo equivale a `true`: clientes existentes não mudam. O frontend envia o campo explicitamente em toda consulta.
+
+```json
+{
+  "question": "Qual é o procedimento de reinicialização?",
+  "document_ids": ["8f3c2a1e-..."],
+  "show_sources": false
+}
+```
+
+**`POST /chat/query` (existente, JSON).** `show_sources=true`: comportamento atual exato. `show_sources=false`: mesmo pipeline estruturado da §6.2 (camadas 1 e 2 intactas), `answer` sem marcadores `[n]` e `sources: []` — os claims válidos viram frases em texto corrido e os parágrafos fixos (partes não encontradas, claims não vinculados) são mantidos.
+
+**`POST /chat/query/stream` (novo, SSE).** Sempre responde sem fontes: aceita um `ChatRequest` com o default de `show_sources` trocado para `false` nesta rota (schema derivado `ChatStreamRequest`) — a omissão já responde sem fontes; enviar `true` explicitamente retorna `422 stream_sources_unsupported` (§5.3), porque o endpoint não gera citações. Sucesso: `200`, `Content-Type: text/event-stream`, `Cache-Control: no-cache`; eventos em linhas `data: {json}\n\n`:
+
+```text
+data: {"type": "delta", "text": "Desligue o equipamento e aguarde 30 segundos."}
+
+data: {"type": "delta", "text": " Depois, mantenha o botão de energia pressionado por 5 segundos."}
+
+data: {"type": "done", "has_evidence": true}
+```
+
+- `delta.text` já vem filtrado (sem `[n]`, com limpeza local de espaços) e é **markdown** (§12.7): clientes que exibem texto puro verão a sintaxe; os deltas concatenados formam a resposta completa.
+- `done` ocorre exatamente uma vez e é o último evento de um stream bem-sucedido. `has_evidence: false` só no caso da resposta fixa de RF-14, que chega como um único delta seguido de `done`.
+- `error` carrega o envelope da §5.3 (`code` estável, `message` pt-BR) e encerra o stream.
+- Erros detectados antes do primeiro evento (validação 422/409, falha ou timeout na recuperação 502/504) voltam como resposta JSON com o status correto — o stream ainda não começou. Falhas do provedor durante a geração viram evento `error` (o status 200 já foi comprometido).
+- Cliente desconecta (`AbortController`, aba fechada): o backend encerra a geração; nada além de IDs, contagens e durações vai para o log.
+- O OpenAPI gerado continua sendo a fonte de verdade depois de implementado; `docs/api.md` é atualizado na tarefa 7.17.
+
+### 12.7 Pipeline sem fontes, prompt e filtro de marcadores
+
+Princípio da v2.2: o pipeline padrão prioriza correção e rastreabilidade — a regra de evidência em duas camadas (§6.2) permanece intacta no caminho com fontes e no JSON sem fontes. O streaming é uma exceção opt-in, escolhida pelo usuário ao ocultar as fontes, que troca a camada 2 por velocidade percebida.
+
+O modo sem fontes tem **dois caminhos**:
+
+1. **JSON (`/chat/query` com `show_sources=false`):** reusa o pipeline estruturado da §6.2 por inteiro; apenas a montagem (passo 8, `_assemble_answer` em `rag_service.py`) omite os marcadores. A camada 2 continua descartando claims sem citação válida.
+2. **Streaming (`/chat/query/stream`):** a camada 1 continua decidida em código (limiar de relevância antes de chamar o modelo). A geração usa um prompt próprio em prosa com `ChatOpenAI(...).stream` — **sem** `with_structured_output` — e a camada 2 não se aplica, porque não há citações a validar (risco registrado na §12.11).
+
+**Prompt:** `ANSWER_NO_SOURCES_PROMPT_V1`, nova constante versionada em `services/prompts.py` (valem as regras de versionamento da §6.3: nunca editar versão liberada; registro no README com data e motivo). Herda do `ANSWER_PROMPT_V2` as regras de grounding (1), contradições (5), idioma (6), fidelidade a números e termos (7) e defesa contra prompt injection (8, tags `<trecho>`); troca a saída estruturada por: resposta em texto corrido com formatação markdown simples (títulos curtos, negrito, itálico, listas, código em linha e em bloco; sem tabelas, links, imagens ou HTML), frases curtas, **sem escrever marcadores `[n]`**, e parágrafo final "Não encontrei nos documentos selecionados: …" para as partes da pergunta sem resposta nos trechos.
+
+**Filtro de segurança em código (streaming):** o modelo é instruído a não citar, mas o código não confia (mesma filosofia do RF-12: só o código escreve marcadores). O `rag_service` aplica, a cada delta, um filtro com **buffer curto**: o sufixo que ainda pode ser o início de um marcador (`[`, `[3`, `[3,`…) é retido até o chunk seguinte resolvê-lo — um índice pode chegar dividido entre chunks (`[` num chunk, `3]` no seguinte). O `flush()` final libera o que sobrou e aplica a limpeza de espaços duplos e de espaço antes de pontuação deixados pela remoção (os padrões `MODEL_MARKER_PATTERN`, `WHITESPACE_PATTERN` e `SPACE_BEFORE_PUNCTUATION_PATTERN` já existem no `rag_service`) — de forma **local**, apenas nos pontos de remoção, para não colapsar as quebras de linha e as listas do markdown. Um colchete incompleto no fim do stream permanece como texto literal (não se remove conteúdo real), e colchetes legítimos com conteúdo não numérico (ex.: `[anexo]`) são preservados.
+
+### 12.8 Decisões técnicas
+
+| # | Decisão | Justificativa (e alternativa rejeitada) |
+| --- | --- | --- |
+| 1 | `show_sources` no `ChatRequest`: default `true` no `/chat/query`, default `false` no `/chat/query/stream` (schema derivado `ChatStreamRequest`) | Compatibilidade: clientes atuais do `/chat/query` não enviam o campo e mantêm o comportamento; na rota de stream, a omissão já entrega o que a rota faz (alternativa: default único — rejeitada: `true` obrigaria todo cliente do stream a enviar o campo; `false` no `/chat/query` mudaria clientes existentes) |
+| 2 | Dois endpoints: `/chat/query` (JSON) e `/chat/query/stream` (SSE) | Pipelines e `Content-Type` diferentes; alternar formato pela mesma URL quebraria OpenAPI e clientes (alternativa: `show_sources=false` mudar o formato do `/chat/query` — rejeitada por ambiguir o contrato) |
+| 3 | `show_sources=true` explícito no stream → `422 stream_sources_unsupported` | A rota não gera citações: pedir fontes a ela é contrato impossível e deve falhar explícito, não silencioso; a omissão (default `false` nesta rota) é inequívoca |
+| 4 | Modo oculto sem streaming usa o pipeline estruturado (só a montagem muda) | Camada 2 intacta para clientes de API; mudança mínima em `_assemble_answer` (alternativa: usar o prompt em prosa também no JSON — rejeitada: abriria mão da validação sem ganho) |
+| 5 | Streaming gera prosa com prompt próprio, sem saída estruturada | `with_structured_output` emite JSON de claims que o código monta depois: não há resposta final para streamar token a token, e "streamar" o texto já montado seria streaming falso, sem ganho de TTFT. Custo: a camada 2 não se aplica neste caminho (§12.11) |
+| 6 | Transporte SSE (`StreamingResponse` + `fetch`/`ReadableStream`) | Sem dependência nova (§8.1); `EventSource` não suporta POST; WebSocket exigiria mudança de stack sem ganho num app local. No Docker, o nginx serve só o bundle estático: o browser fala direto com o backend, sem proxy no caminho do SSE |
+| 7 | Preferência em `localStorage` (`show_sources`), default ligado | Precedente do tema (RF-19, chave `theme`, try/catch); não há perfil de usuário no MVP (§2.2) — backend/perfil seria custo sem benefício agora |
+| 8 | Erros: antes do primeiro evento → JSON com status; durante → evento `error` | O status 200 já foi enviado quando o stream começa; evento de erro é o padrão SSE e preserva o envelope da §5.3 |
+| 9 | Cancelamento real: `AbortController` + botão "Parar" | `fetch` abortável fecha a conexão e o backend encerra o gerador **e a iteração do modelo** na desconexão (não só o cliente para de ler); sem o botão, o usuário ficaria preso a um stream longo — pior que no modo atual |
+| 10 | Markdown só no modo sem fontes, com `markdown-it` (única dependência nova da sprint) | No streaming o modelo escreve prosa contínua, onde listas, negrito e código ajudam a leitura; o modo com fontes mantém o "comportamento atual" exigido pela funcionalidade, e claims atômicos (uma frase, um fato) não ganham com formatação. `html: false` escapa todo HTML escrito pelo modelo (defesa em profundidade contra prompt injection vinda dos PDFs), as regras de link e imagem desativadas eliminam a superfície de URL e a saída contém só tags inertes — o que justifica o único `v-html` do app (alternativas: DOMPurify adicional — rejeitado, redundante nesse subconjunto; parser próprio — rejeitado, propenso a erro) |
+
+### 12.9 Critérios de aceite
+
+1. Toggle ligado (default): resposta com `[n]` clicáveis e painel de fontes, idêntica ao comportamento atual — incluindo texto puro, sem markdown; testes existentes passam sem alteração de semântica.
+2. Toggle desligado: nenhuma ocorrência de `\[\d+\]` no texto renderizado e nenhum painel/card de fonte.
+3. A preferência persiste após recarregar; a primeira visita vem ligada; storage bloqueado não quebra o app.
+4. Modo oculto: o primeiro trecho de texto aparece antes do fim da geração; TTFT registrado (`first_token_ms`) e meta da §12.4 confirmada ou ajustada com as medições representativas da 7.15.
+5. Sem evidência (camada 1) no modo oculto: chega o texto fixo de RF-14 e `done` com `has_evidence=false`.
+6. Erro do provedor no meio do stream: o parcial permanece e um banner pt-BR com `code` estável aparece logo após.
+7. Parar interrompe na hora; o parcial fica; não há banner de erro; novo envio é aceito.
+8. `422`/`409` (antes do stream) chegam como JSON com o status correto: chamar o stream sem `show_sources` responde sem fontes (default da rota), e `show_sources=true` explícito retorna `422 stream_sources_unsupported`.
+9. Toggle navegável por teclado, AA nos dois temas, sem rolagem horizontal em 360 px.
+10. Nenhum log com pergunta, resposta ou trecho; apenas IDs, contagens, flags e durações.
+11. Markdown do modo oculto: títulos, negrito, itálico, listas e código renderizam; sintaxe fora do subconjunto (tabelas, links, imagens) não renderiza e HTML aparece como texto.
+12. Segurança do markdown: `<script>`, atributos `on*` e URLs `javascript:` vindos do modelo nunca viram HTML executável ou link clicável.
+
+### 12.10 Fora de escopo
+
+| Item | Situação |
+| --- | --- |
+| Streaming no modo com fontes (citações incrementais) | Fora: exigiria validar citações só no fim, sem garantia por token |
+| Camada 2 (validação pós-modelo) no caminho streaming | Não se aplica por definição (sem citações); ver §12.11 |
+| Persistir a preferência no backend ou por perfil | Sem multiusuário no MVP (§2.2) |
+| WebSocket, reconexão automática, retomada de stream | Fora; app local, uma aba |
+| Markdown no modo com fontes | Fora: o caminho com fontes mantém o comportamento atual e claims atômicos não ganham com formatação (§12.8, decisão 10) |
+| Links, imagens, tabelas e HTML cru nas respostas | Fora: subconjunto fechado do renderizador (RF-24) |
+
+### 12.11 Riscos e mitigações
+
+| Risco | Impacto | Mitigação |
+| --- | --- | --- |
+| Sem camada 2 no caminho streaming (grounding só por prompt + camada 1) | Médio | Mesmas regras de grounding e defesa contra injection do `ANSWER_PROMPT_V2`; filtro de `[n]` em código; regressão 7.15 comparando `has_evidence` e qualidade com o modo com fontes; o caminho JSON sem fontes mantém a camada 2 para quem prefere a garantia |
+| Modelo escreve `[n]` mesmo instruído a não citar | Baixo | Filtro de segurança em código com buffer entre chunks (não confiar só no prompt) |
+| Marcador dividido entre chunks do stream (`[` + `3]`) | Baixo | Buffer curto no filtro + `flush` final; casos de borda em teste dedicado (7.12) |
+| Caractere UTF-8 dividido entre chunks de rede | Baixo | `TextDecoder` em modo stream no frontend (7.7), com teste |
+| Markdown permite HTML ou links perigosos (o texto do modelo é não confiável) | Médio | `markdown-it` com `html: false` (todo HTML cru vira texto), regras de link e imagem desativadas, saída só com tags inertes; testes de XSS na 7.14 |
+| Sintaxe markdown parcial durante o streaming (ex.: `**` sem fechar) | Baixo | Re-render do texto acumulado a cada delta; sintaxe incompleta aparece como texto até ser fechada — transitório e aceitável |
+| Filtro de marcadores colapsar quebras de linha do markdown | Baixo | Limpeza local aos pontos de remoção; teste de preservação de listas na 7.12 |
+| TTFT acima da meta (provedor lento ou filado) | Médio | Meta provisória medida com `first_token_ms`; `PROVIDER_TIMEOUT_S` reutilizado; confirmar ou ajustar a meta com as medições representativas da 7.15 antes de virar critério definitivo |
+| Resposta parcial ambígua após erro no meio do stream | Baixo | Parcial mantido + banner de erro explícito com `code` estável |
+| Divergência de estilo entre o JSON sem fontes (claims) e o streaming (prosa) | Baixo | Documentada na §12.7; ambos sem marcadores e com o mesmo parágrafo de partes não encontradas |
