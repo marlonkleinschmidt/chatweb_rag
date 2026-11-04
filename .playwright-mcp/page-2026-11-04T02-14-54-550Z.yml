@@ -1,0 +1,56 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=f2e5]
+    - generic [ref=f2e11]:
+      - status [ref=f2e13]:
+        - generic [ref=f2e14]: "Servidor: conectado"
+      - button "Ativar tema escuro" [ref=f2e125]
+  - tablist "Seções" [ref=f2e127]:
+    - tab "Documentos" [ref=f2e128]
+    - tab "Chat" [active] [selected] [ref=f2e129]
+  - main [ref=f2e20]:
+    - tabpanel "Chat" [ref=f2e131]:
+      - generic [ref=f2e58]:
+        - heading "Chat" [level=2] [ref=f2e60]
+        - log "Conversa" [ref=f2e61]:
+          - generic [ref=f2e88]:
+            - generic [ref=f2e89]: "Você:"
+            - paragraph [ref=f2e90]: Qual é a placa do veículo?
+          - generic [ref=f2e92]:
+            - generic [ref=f2e93]: "Assistente:"
+            - paragraph [ref=f2e95]:
+              - strong [ref=f2e96]: A placa do veículo é QIS2867/SC.
+          - generic [ref=f2e101]:
+            - generic [ref=f2e102]: "Você:"
+            - paragraph [ref=f2e103]: Qual é a placa do veículo?
+          - generic [ref=f2e105]:
+            - generic [ref=f2e106]: "Assistente:"
+            - paragraph [ref=f2e107]:
+              - text: A placa do veículo é QIS2867/SC
+              - button "Ir para a fonte 4" [ref=f2e108]: "[4]"
+              - text: .
+            - generic [ref=f2e109]:
+              - paragraph [ref=f2e110]: Fontes
+              - list [ref=f2e111]:
+                - listitem [ref=f2e112]:
+                  - article [ref=f2e113]:
+                    - generic [ref=f2e114]:
+                      - generic [aria-hidden] [ref=f2e115]: "[4]"
+                      - generic [ref=f2e116]: Fonte 4
+                      - generic [ref=f2e117]:
+                        - paragraph [ref=f2e118]: CRLVE_QIS2867_2026.pdf
+                        - paragraph [ref=f2e119]: Página 1
+                    - button "Mostrar trecho" [ref=f2e120]
+        - generic [ref=f2e63]:
+          - paragraph [ref=f2e81]: Perguntando sobre 1 documento.
+          - generic [ref=f2e66]:
+            - generic [ref=f2e67] [cursor=pointer]:
+              - switch "Exibir fontes" [checked] [ref=f2e69]
+              - text: Exibir fontes
+            - paragraph [ref=f2e72]: Com as fontes desligadas, a resposta chega em streaming, sem citações.
+          - generic [ref=f2e73]:
+            - generic [ref=f2e74]: Pergunta
+            - textbox "Pergunta" [ref=f2e75]:
+              - /placeholder: Pergunte algo sobre os documentos selecionados
+            - paragraph [ref=f2e76]: Enter envia. Shift+Enter quebra a linha.
+          - button "Enviar" [ref=f2e78]

@@ -23,6 +23,20 @@ class ChatRequest(BaseModel):
         min_length=MIN_DOCUMENTS_PER_QUERY,
         max_length=settings.max_documents_per_query,
     )
+    # Omitting the field keeps the current behaviour (PRD §12.6): sources
+    # are shown, so existing clients do not change.
+    show_sources: bool = Field(default=True)
+
+
+class ChatStreamRequest(ChatRequest):
+    """`ChatRequest` of the streaming endpoint, which never shows sources.
+
+    Only the default changes (PRD §12.8, decision 1): omitting `show_sources`
+    already answers without sources; an explicit `true` is rejected by the
+    route with `stream_sources_unsupported`.
+    """
+
+    show_sources: bool = Field(default=False)
 
 
 class Source(BaseModel):

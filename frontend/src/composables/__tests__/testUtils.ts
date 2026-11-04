@@ -78,3 +78,62 @@ export function stubFetchResponses(queue: FetchQueueItem[]) {
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+// One SSE event block exactly as the backend sends it (PRD §12.6): a `data:` line with the
+// JSON payload, framed by the blank line that ends an event.
+export function sseEvent(payload: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(payload)}\n\n`
+}
+
+// A network chunk of the stream body: text encoded to UTF-8, or raw bytes when a test needs
+// to cut a multi-byte character in half.
+export type SseChunk = string | Uint8Array
+
+const encoder = new TextEncoder()
+
+function encodeChunk(chunk: SseChunk): Uint8Array {
+  return typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+}
+
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache',
+}
+
+// An SSE response fully known up front: every chunk is enqueued and the stream closes, so
+// the real streamChat in services/api.ts consumes it with its own reader/decoder.
+export function sseResponse(chunks: SseChunk[]): Response {
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encodeChunk(chunk))
+        controller.close()
+      },
+    }),
+    { status: 200, headers: SSE_HEADERS },
+  )
+}
+
+// An SSE response the test controls chunk by chunk: the initial chunks are delivered, then
+// the stream stays open until the test pushes more, closes it (a clean end) or errors it
+// (a network failure or an aborted fetch mid-stream).
+export function pendingSseResponse(chunks: SseChunk[]): {
+  response: Response
+  push: (chunk: SseChunk) => void
+  close: () => void
+  error: (reason?: unknown) => void
+} {
+  let controller!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({
+    start(c) {
+      controller = c
+      for (const chunk of chunks) c.enqueue(encodeChunk(chunk))
+    },
+  })
+  return {
+    response: new Response(body, { status: 200, headers: SSE_HEADERS }),
+    push: (chunk: SseChunk) => controller.enqueue(encodeChunk(chunk)),
+    close: () => controller.close(),
+    error: (reason?: unknown) => controller.error(reason),
+  }
+}

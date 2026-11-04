@@ -172,13 +172,14 @@ def test_valid_claims_get_sorted_deduplicated_markers(monkeypatch, make_ready_do
     response = _ask(document_id)
 
     assert response.has_evidence is True
-    # markers are deduplicated, ascending and before the final punctuation
+    # markers are deduplicated, ascending and before the final punctuation, and
+    # renumbered by first appearance (prompt chunks 1, 3, 2 -> [1], [2], [3])
     assert response.answer == (
-        'The deadline is 30 days [1][3]. The device turns off on its own [2].'
+        'The deadline is 30 days [1][2]. The device turns off on its own [3].'
     )
-    # sources are the union of the cited chunk indices, in ascending order
+    # sources are the union of the cited chunks, in marker order
     assert [source.index for source in response.sources] == [1, 2, 3]
-    assert [source.page for source in response.sources] == [1, 2, 3]
+    assert [source.page for source in response.sources] == [1, 3, 2]
     assert all(str(source.document_id) == document_id for source in response.sources)
     assert all(source.filename == 'manual.pdf' for source in response.sources)
 
@@ -285,9 +286,82 @@ def test_sources_list_only_cited_chunks(monkeypatch, make_ready_document):
 
     response = _ask(document_id)
 
-    assert [source.index for source in response.sources] == [2]
+    # the only cited chunk (prompt chunk 2) is shown as [1]
+    assert response.answer == 'Valid claim [1].'
+    assert [source.index for source in response.sources] == [1]
     assert response.sources[0].page == 2
     assert response.sources[0].excerpt == 'chunk two content'
+
+
+def _numbered_chunks(document_id, count):
+    return [
+        (_chunk(f'chunk {n} content', document_id, page=n), 0.9)
+        for n in range(1, count + 1)
+    ]
+
+
+def test_single_source_cited_as_chunk_4_is_shown_as_1(monkeypatch, make_ready_document):
+    document_id = make_ready_document()
+    _fake_retriever(monkeypatch, _numbered_chunks(document_id, 5))
+    output = AnswerOutput(
+        claims=[Claim(text='The plate is ABC1D23', cited=[4])],
+        missing=[],
+        has_evidence=True,
+    )
+    _fake_llm(monkeypatch, output)
+
+    response = _ask(document_id)
+
+    assert response.answer == 'The plate is ABC1D23 [1].'
+    assert [source.index for source in response.sources] == [1]
+    assert response.sources[0].page == 4
+    assert response.sources[0].excerpt == 'chunk 4 content'
+
+
+def test_out_of_order_citations_are_renumbered_by_first_appearance(
+    monkeypatch, make_ready_document
+):
+    document_id = make_ready_document()
+    _fake_retriever(monkeypatch, _numbered_chunks(document_id, 6))
+    output = AnswerOutput(
+        claims=[
+            Claim(text='First claim', cited=[5]),
+            Claim(text='Second claim', cited=[6, 2]),
+            Claim(text='Third claim', cited=[3, 5]),
+        ],
+        missing=[],
+        has_evidence=True,
+    )
+    _fake_llm(monkeypatch, output)
+
+    response = _ask(document_id)
+
+    # prompt chunks 5, 2, 6, 3 -> [1], [2], [3], [4]; markers stay ascending
+    assert response.answer == (
+        'First claim [1]. Second claim [2][3]. Third claim [1][4].'
+    )
+    assert [source.index for source in response.sources] == [1, 2, 3, 4]
+    assert [source.page for source in response.sources] == [5, 2, 6, 3]
+
+
+def test_chunk_cited_twice_keeps_a_single_number(monkeypatch, make_ready_document):
+    document_id = make_ready_document()
+    _fake_retriever(monkeypatch, _numbered_chunks(document_id, 4))
+    output = AnswerOutput(
+        claims=[
+            Claim(text='First claim', cited=[3]),
+            Claim(text='Second claim', cited=[3, 3]),
+        ],
+        missing=[],
+        has_evidence=True,
+    )
+    _fake_llm(monkeypatch, output)
+
+    response = _ask(document_id)
+
+    assert response.answer == 'First claim [1]. Second claim [1].'
+    assert [source.index for source in response.sources] == [1]
+    assert response.sources[0].page == 3
 
 
 def test_document_not_ready_returns_document_not_ready(insert_document):

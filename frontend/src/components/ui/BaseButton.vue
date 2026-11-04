@@ -11,12 +11,16 @@ const props = withDefaults(
     type?: 'button' | 'submit'
     loading?: boolean
     disabled?: boolean
+    // Square 40 px button whose slot is only a BaseIcon: the caller must pass an aria-label
+    // (and a title). While loading, the spinner replaces the icon instead of sitting beside it.
+    iconOnly?: boolean
   }>(),
   {
     variant: 'secondary',
     type: 'button',
     loading: false,
     disabled: false,
+    iconOnly: false,
   },
 )
 
@@ -37,10 +41,10 @@ const isDisabled = computed(() => props.disabled || props.loading)
     :type="type"
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : undefined"
-    class="inline-flex min-h-10 items-center justify-center gap-2 rounded-control px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
-    :class="variantClasses[variant]"
+    class="inline-flex items-center justify-center gap-2 rounded-control text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
+    :class="[variantClasses[variant], iconOnly ? 'size-10' : 'min-h-10 px-4']"
   >
     <BaseIcon v-if="loading" name="spinner" />
-    <slot />
+    <slot v-if="!(iconOnly && loading)" />
   </button>
 </template>

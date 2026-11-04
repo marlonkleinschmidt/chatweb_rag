@@ -28,6 +28,17 @@ export interface DocumentListResponse {
 export interface ChatRequest {
   question: string
   document_ids: string[]
+  // Sent explicitly on every query (PRD §12.6): true keeps the [n] markers and sources;
+  // false returns a continuous answer with sources: [].
+  show_sources: boolean
+}
+
+// Body of POST /chat/query/stream (PRD §12.6): the route always answers without sources,
+// so `show_sources` can only be false — sending `true` returns 422 stream_sources_unsupported.
+export interface ChatStreamRequest {
+  question: string
+  document_ids: string[]
+  show_sources: false
 }
 
 export interface Source {

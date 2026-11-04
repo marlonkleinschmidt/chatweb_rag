@@ -61,10 +61,12 @@ describe('useChat', () => {
     expect(JSON.parse(String(firstInit?.body))).toEqual({
       question: 'Qual é o prazo de entrega?',
       document_ids: ['doc-1'],
+      show_sources: true,
     })
     expect(JSON.parse(String(secondInit?.body))).toEqual({
       question: 'E qual o valor total?',
       document_ids: ['doc-1', 'doc-2'],
+      show_sources: true,
     })
   })
 
@@ -80,9 +82,21 @@ describe('useChat', () => {
 
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'Primeira pergunta' },
-      { id: 2, role: 'assistant', content: 'Primeira resposta.', sources: defaultSources },
+      {
+        id: 2,
+        role: 'assistant',
+        content: 'Primeira resposta.',
+        sources: defaultSources,
+        markdown: false,
+      },
       { id: 3, role: 'user', content: 'Segunda pergunta' },
-      { id: 4, role: 'assistant', content: 'Segunda resposta.', sources: defaultSources },
+      {
+        id: 4,
+        role: 'assistant',
+        content: 'Segunda resposta.',
+        sources: defaultSources,
+        markdown: false,
+      },
     ])
   })
 
@@ -107,7 +121,13 @@ describe('useChat', () => {
     expect(store.generating).toBe(false)
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'Primeira pergunta' },
-      { id: 2, role: 'assistant', content: 'Resposta concluída.', sources: defaultSources },
+      {
+        id: 2,
+        role: 'assistant',
+        content: 'Resposta concluída.',
+        sources: defaultSources,
+        markdown: false,
+      },
     ])
   })
 
@@ -121,7 +141,7 @@ describe('useChat', () => {
 
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'Pergunta fora do tema dos documentos' },
-      { id: 2, role: 'assistant', content: noEvidenceAnswer, sources: [] },
+      { id: 2, role: 'assistant', content: noEvidenceAnswer, sources: [], markdown: false },
     ])
   })
 
@@ -139,7 +159,13 @@ describe('useChat', () => {
 
     expect(store.entries).toEqual([
       { id: 1, role: 'user', content: 'O que dizem os documentos?' },
-      { id: 2, role: 'assistant', content: 'Afirmação [1] e complemento [2].', sources },
+      {
+        id: 2,
+        role: 'assistant',
+        content: 'Afirmação [1] e complemento [2].',
+        sources,
+        markdown: false,
+      },
     ])
   })
 

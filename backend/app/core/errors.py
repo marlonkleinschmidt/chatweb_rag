@@ -31,6 +31,8 @@ class ErrorCode(StrEnum):
     PROVIDER_TIMEOUT = 'provider_timeout'
     DELETE_PARTIAL = 'delete_partial'
     INTERNAL_ERROR = 'internal_error'
+    # v2.2 (PRD §12.6): explicit sources requested on the streaming endpoint.
+    STREAM_SOURCES_UNSUPPORTED = 'stream_sources_unsupported'
     # Generic codes (not in PRD §5.3) for framework-level errors.
     INVALID_REQUEST = 'invalid_request'
     NOT_FOUND = 'not_found'
@@ -66,6 +68,9 @@ ERROR_MESSAGES: dict[ErrorCode, str] = {
     ),
     ErrorCode.DELETE_PARTIAL: 'Não foi possível concluir a remoção. Tente novamente.',
     ErrorCode.INTERNAL_ERROR: 'Ocorreu um erro inesperado. Tente novamente.',
+    ErrorCode.STREAM_SOURCES_UNSUPPORTED: (
+        'O endpoint de streaming não exibe fontes; use /chat/query.'
+    ),
     ErrorCode.INVALID_REQUEST: 'Os dados enviados são inválidos.',
     ErrorCode.NOT_FOUND: 'Recurso não encontrado.',
     ErrorCode.METHOD_NOT_ALLOWED: 'Método não permitido.',
@@ -87,6 +92,7 @@ ERROR_STATUS: dict[ErrorCode, int] = {
     ErrorCode.PROVIDER_TIMEOUT: 504,
     ErrorCode.DELETE_PARTIAL: 500,
     ErrorCode.INTERNAL_ERROR: 500,
+    ErrorCode.STREAM_SOURCES_UNSUPPORTED: 422,
     ErrorCode.INVALID_REQUEST: 422,
     ErrorCode.NOT_FOUND: 404,
     ErrorCode.METHOD_NOT_ALLOWED: 405,

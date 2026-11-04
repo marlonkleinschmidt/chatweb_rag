@@ -32,8 +32,14 @@ class Settings(BaseSettings):
     # RAG (validated in Sprint 3, see docs/eval.md)
     chunk_size: int = Field(default=500, gt=0)
     chunk_overlap: int = Field(default=200, ge=0)
+    # Task 7.33: a 1-page document whose extracted text has at most this many
+    # characters is indexed as a single chunk (0 disables it).
+    small_document_max_chars: int = Field(default=4000, ge=0)
     retrieval_k: int = Field(default=8, gt=0)
     relevance_threshold: float = Field(default=0.35, ge=0.0, le=1.0)
+    # Task 7.29: with 2+ selected documents, each one keeps up to this many of
+    # its own chunks above the threshold inside `retrieval_k` (0 disables it).
+    min_chunks_per_document: int = Field(default=1, ge=0)
 
     # Chat limits
     max_question_chars: int = Field(default=2000, ge=MIN_QUESTION_CHARS)

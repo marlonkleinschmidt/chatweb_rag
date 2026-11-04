@@ -2,6 +2,7 @@
 import { computed, useId } from 'vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseIcon from '@/components/ui/BaseIcon.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ptBR } from '@/locales/pt-BR'
 import type { Document } from '@/types/api'
@@ -55,8 +56,9 @@ const sentAt = computed(() => {
 </script>
 
 <template>
+  <!-- bg-canvas sets the card apart from the surface panel: darker in light, lighter in dark. -->
   <li
-    class="flex items-start gap-3 rounded-panel border bg-surface p-3"
+    class="flex items-start gap-3 rounded-panel border bg-canvas p-3"
     :class="selected ? 'border-primary' : 'border-border'"
   >
     <!-- RF-09: every item has a checkbox, enabled only for ready documents -->
@@ -69,10 +71,12 @@ const sentAt = computed(() => {
       :aria-label="ptBR.documents.selectLabel(document.filename)"
     />
     <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <!-- One line with ellipsis; the full name stays in the DOM text, the title and the aria-label. -->
       <label
         :for="checkboxId"
-        class="text-sm font-semibold break-words text-text-primary"
+        class="block truncate text-sm font-semibold text-text-primary"
         :class="isReady ? 'cursor-pointer' : 'cursor-default'"
+        :title="document.filename"
       >
         {{ document.filename }}
       </label>
@@ -86,15 +90,18 @@ const sentAt = computed(() => {
         {{ document.error_message ?? ptBR.errors.unexpected }}
       </p>
     </div>
+    <!-- Icon-only (40 px) so the filename gets the width; the name stays in aria-label/title. -->
     <BaseButton
       v-if="canRemove"
       variant="ghost"
+      icon-only
       class="shrink-0"
       :loading="removing"
       :aria-label="ptBR.documents.removeLabel(document.filename)"
+      :title="ptBR.documents.removeLabel(document.filename)"
       @click="emit('remove', document.id)"
     >
-      {{ ptBR.documents.remove }}
+      <BaseIcon name="trash" />
     </BaseButton>
   </li>
 </template>

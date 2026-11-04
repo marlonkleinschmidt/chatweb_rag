@@ -1,0 +1,53 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: conectado"
+      - button "Ativar tema escuro" [ref=e17]
+  - main [ref=e20]:
+    - region [ref=e21]:
+      - generic [ref=e22]:
+        - heading "Documentos" [level=2] [ref=e24]
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - button "Enviar PDF" [ref=e27]
+            - paragraph [ref=e28]: Um arquivo PDF por vez.
+            - paragraph [ref=e29]:
+              - generic [ref=e32]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - paragraph [ref=e33]: 1 de 10 selecionados
+          - list "Documentos enviados" [ref=e34]:
+            - listitem [ref=e35]:
+              - checkbox "Selecionar CRLVE_QIS2867_2026.pdf" [ref=e36]
+              - generic [ref=e37]:
+                - generic [ref=e38] [cursor=pointer]: CRLVE_QIS2867_2026.pdf
+                - paragraph [ref=e39]:
+                  - time [ref=e40]: Enviado em 03/11/2026 18:45
+                - generic [ref=e41]: Pronto
+              - button "Remover CRLVE_QIS2867_2026.pdf" [ref=e45]: Remover
+            - listitem [ref=e46]:
+              - checkbox "Selecionar SM-G97X_UG_BR_Rev.1.4.pdf" [checked] [active] [ref=e47]
+              - generic [ref=e48]:
+                - generic [ref=e49] [cursor=pointer]: SM-G97X_UG_BR_Rev.1.4.pdf
+                - paragraph [ref=e50]:
+                  - time [ref=e51]: Enviado em 03/11/2026 18:39
+                - generic [ref=e52]: Pronto
+              - button "Remover SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e56]: Remover
+    - region [ref=e57]:
+      - generic [ref=e58]:
+        - heading "Chat" [level=2] [ref=e60]
+        - log "Conversa" [ref=e61]:
+          - paragraph [ref=e62]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=e63]:
+          - paragraph [ref=e76]: Perguntando sobre 1 documento.
+          - generic [ref=e66]:
+            - generic [ref=e67] [cursor=pointer]:
+              - checkbox "Exibir fontes" [checked] [ref=e68]
+              - text: Exibir fontes
+            - paragraph [ref=e69]: Com as fontes desligadas, a resposta chega em streaming, sem citações.
+          - generic [ref=e70]:
+            - generic [ref=e71]: Pergunta
+            - textbox "Pergunta" [ref=e72]:
+              - /placeholder: Pergunte algo sobre os documentos selecionados
+            - paragraph [ref=e73]: Enter envia. Shift+Enter quebra a linha.
+          - button "Enviar" [ref=e75]

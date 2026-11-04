@@ -10,8 +10,21 @@ expected page among the sources, the fixed `NO_EVIDENCE_ANSWER` for
 out-of-topic questions, the covered part plus the missing-parts paragraph
 for partial ones, and no injected instruction for the malicious one.
 
-This module calls the REAL OpenAI API and costs money (~US$ 0.001 per run),
-so it is opt-in: `pytest.ini` deselects it from the default run with
+Since task 7.15 (PRD §12) the same 15 questions also run in the no-sources
+modes: JSON with `show_sources=false`, comparing `has_evidence` with the
+with-sources answer (§12.6), and streaming, twice, for a provisional TTFT
+p50/p90 of `first_token_ms` plus the mean duration per mode (§12.4).
+
+Since task 7.32 mixed questions also run over copies of two REAL PDFs
+of very different sizes (the CRLV and the SM-G97X manual, read from
+`backend/data`, skipped when they are not there), with the per-document
+quota off (0) and on (1). Since task 7.33 the 1-page CRLV is indexed as a
+single chunk (`SMALL_DOCUMENT_MAX_CHARS`), and CM1-CM3 must all pass.
+Indexing the manual adds ~US$ 0.002 per run.
+
+This module calls the REAL OpenAI API and costs money (~US$ 0.02 per run:
+five full passes over the 15 questions plus one indexing), so it is
+opt-in: `pytest.ini` deselects it from the default run with
 `addopts = -m "not regression"`. Run it explicitly with:
 
     .venv/Scripts/python.exe -m pytest -m regression
@@ -23,7 +36,10 @@ whole module is skipped. All data lives in a pytest temporary directory, so
 `backend/data` is never touched.
 """
 
+import math
 import re
+import sqlite3
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -37,7 +53,7 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate
 
 from app import db
 from app.core.config import settings
-from app.schemas.chat import ChatRequest
+from app.schemas.chat import ChatRequest, ChatStreamRequest
 from app.services import rag_service
 from app.services.document_service import index_document, upload_document
 from app.services.rag_service import MISSING_PARTS_PREFIX, NO_EVIDENCE_ANSWER
@@ -45,6 +61,12 @@ from app.services.rag_service import MISSING_PARTS_PREFIX, NO_EVIDENCE_ANSWER
 # The code (never the model) writes the `[n]` markers, so every answer with
 # evidence must show at least one.
 MARKER_PATTERN = re.compile(r'\[\d+\]')
+
+# Task 7.15 (PRD §12.4): streaming rounds over the 15 questions for a
+# provisional TTFT p50/p90 (2 x 15 = 30 samples) and a sanity bound for one
+# `first_token_ms`. The §12.4 target itself is reported, never asserted.
+STREAM_ROUNDS = 2
+TTFT_SANITY_LIMIT_MS = 30_000
 
 ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
 REQUIRED_ENV = ('OPENAI_API_KEY', 'CHAT_MODEL', 'EMBEDDING_MODEL')
@@ -677,9 +699,10 @@ def eval_corpus(tmp_path_factory):
 
     Uses the real `backend/.env` credentials and the calibrated
     configuration of docs/eval.md (CHUNK_SIZE=500, RETRIEVAL_K=8,
-    RELEVANCE_THRESHOLD=0.35, CHUNK_OVERLAP=200), so a local `.env` tweak
-    cannot silently change what is being tested. Every consumer reads the
-    settings at call time, so patching the attributes is enough.
+    RELEVANCE_THRESHOLD=0.35, CHUNK_OVERLAP=200, SMALL_DOCUMENT_MAX_CHARS=4000),
+    so a local `.env` tweak cannot silently change what is being tested.
+    Every consumer reads the settings at call time, so patching the
+    attributes is enough.
     """
     data_dir = tmp_path_factory.mktemp('regression-eval')
     patch = pytest.MonkeyPatch()
@@ -689,6 +712,7 @@ def eval_corpus(tmp_path_factory):
         patch.setattr(settings, 'embedding_model', REAL_ENV['EMBEDDING_MODEL'])
         patch.setattr(settings, 'chunk_size', 500)
         patch.setattr(settings, 'chunk_overlap', 200)
+        patch.setattr(settings, 'small_document_max_chars', 4000)
         patch.setattr(settings, 'retrieval_k', 8)
         patch.setattr(settings, 'relevance_threshold', 0.35)
         patch.setattr(settings, 'chat_temperature', 0.0)
@@ -772,3 +796,442 @@ def test_eval_question(case: EvalCase, eval_corpus: EvalCorpus) -> None:
         assert MISSING_PARTS_PREFIX in response.answer, response.answer
         missing_text = response.answer.split(MISSING_PARTS_PREFIX, 1)[1]
         assert case.missing_hint in missing_text.lower(), response.answer
+
+
+# --------------------------------------------------------------------------
+# Task 7.15 (PRD §12): the same 15 questions in the no-sources modes — JSON
+# with `show_sources=false` (§12.6) and streaming (§12.7) — plus the TTFT
+# (`first_token_ms`) and duration measurements of §12.4.
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StreamMeasure:
+    """One streamed answer: TTFT, total duration and the evidence decision."""
+
+    case_id: str
+    first_token_ms: int
+    duration_ms: int
+    has_evidence: bool
+
+
+# Cross-test measurements, printed by `test_mode_summary` (the last test of
+# the module: definition order aggregates everything collected above).
+_JSON_WITH_SOURCES_MS: dict[str, int] = {}
+_JSON_NO_SOURCES_MS: dict[str, int] = {}
+_EVIDENCE_AGREEMENT: dict[str, bool] = {}
+_STREAM_MEASURES: list[StreamMeasure] = []
+
+
+def _percentile(samples: list[int], pct: int) -> int:
+    """Nearest-rank percentile (pct in 1..100) of a non-empty sample list."""
+    ordered = sorted(samples)
+    rank = min(len(ordered), max(1, math.ceil(pct / 100 * len(ordered))))
+    return ordered[rank - 1]
+
+
+@pytest.mark.parametrize('case', CASES, ids=[case.id for case in CASES])
+def test_eval_question_no_sources(case: EvalCase, eval_corpus: EvalCorpus) -> None:
+    """Ask one eval question in JSON mode with `show_sources=False` (§12.6).
+
+    The same question is also asked again with sources shown (an independent
+    call) so `has_evidence` can be compared between the modes: both run the
+    same structured pipeline with both evidence layers (§12.7, path 1), so a
+    difference would mean model variance, not mode behaviour. Approval keeps
+    the with-sources criteria minus the citation checks: same facts, same
+    forbidden strings, same missing-parts paragraph, but no `[n]` marker and
+    `sources == []`.
+    """
+    document_ids = [eval_corpus.document_ids[name] for name in (MANUAL, POLICY, XT200)]
+
+    started = time.monotonic()
+    with_sources = rag_service.answer_question(
+        ChatRequest(question=case.question, document_ids=document_ids)
+    )
+    with_sources_ms = int((time.monotonic() - started) * 1000)
+
+    started = time.monotonic()
+    no_sources = rag_service.answer_question(
+        ChatRequest(
+            question=case.question, document_ids=document_ids, show_sources=False
+        )
+    )
+    no_sources_ms = int((time.monotonic() - started) * 1000)
+
+    _JSON_WITH_SOURCES_MS[case.id] = with_sources_ms
+    _JSON_NO_SOURCES_MS[case.id] = no_sources_ms
+    _EVIDENCE_AGREEMENT[case.id] = no_sources.has_evidence == with_sources.has_evidence
+    assert no_sources.has_evidence == with_sources.has_evidence, (
+        f'{case.id}: has_evidence differs between modes '
+        f'({with_sources.has_evidence} with sources, {no_sources.has_evidence} without)'
+    )
+
+    if case.kind == 'fixed':
+        assert no_sources.answer == NO_EVIDENCE_ANSWER, no_sources.answer
+        assert no_sources.has_evidence is False
+        assert no_sources.sources == [], f'{case.id}: sources must be empty'
+        return
+
+    assert no_sources.has_evidence is True, no_sources.answer
+    for fact in case.facts:
+        assert fact in no_sources.answer, f'missing fact {fact!r}: {no_sources.answer}'
+    for banned in case.forbidden:
+        assert banned not in no_sources.answer, no_sources.answer
+    assert not MARKER_PATTERN.search(no_sources.answer), no_sources.answer
+    assert no_sources.sources == [], f'{case.id}: sources must be empty'
+
+    if case.kind == 'partial':
+        assert MISSING_PARTS_PREFIX in no_sources.answer, no_sources.answer
+        missing_text = no_sources.answer.split(MISSING_PARTS_PREFIX, 1)[1]
+        assert case.missing_hint in missing_text.lower(), no_sources.answer
+
+
+def _run_stream(case: EvalCase, document_ids: list[str]) -> StreamMeasure:
+    """Stream one eval answer, assert the event contract and measure the TTFT.
+
+    `first_token_ms` runs from just before `stream_answer(...)` — whose eager
+    part is validation plus retrieval — to the first yielded delta: the same
+    span the production log measures (PRD §12.4). Fixed cases take either
+    path of §12.7: barred by layer 1 (single fixed delta, model never called)
+    or, like O3/O4 of docs/eval.md, past layer 1 and answered by the prose
+    model, because layer 2 does not exist in the streaming path — then the
+    answer must acknowledge the gap instead of inventing one.
+    """
+    started = time.monotonic()
+    events = rag_service.stream_answer(
+        ChatStreamRequest(question=case.question, document_ids=document_ids)
+    )
+    deltas: list[str] = []
+    first_token_ms: int | None = None
+    done_count = 0
+    has_evidence: bool | None = None
+    for event in events:
+        assert not done_count, f'{case.id}: event yielded after done'
+        if event['type'] == 'delta':
+            if first_token_ms is None:
+                first_token_ms = int((time.monotonic() - started) * 1000)
+            deltas.append(str(event['text']))
+        elif event['type'] == 'done':
+            done_count += 1
+            has_evidence = bool(event['has_evidence'])
+        else:
+            pytest.fail(f'{case.id}: unexpected event type {event["type"]!r}')
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    assert done_count == 1, f'{case.id}: expected exactly one done event'
+    assert first_token_ms is not None, f'{case.id}: no delta was yielded'
+    assert 0 < first_token_ms < TTFT_SANITY_LIMIT_MS, (
+        f'{case.id}: first_token_ms={first_token_ms}'
+    )
+    text = ''.join(deltas)
+    assert not MARKER_PATTERN.search(text), text
+
+    if case.kind == 'fixed':
+        if has_evidence is False:
+            assert deltas == [NO_EVIDENCE_ANSWER], deltas
+        else:
+            assert has_evidence is True, f'{case.id}: done without has_evidence'
+            assert text.strip(), f'{case.id}: empty streamed answer'
+            assert 'não encontrei' in text.lower(), text
+        return StreamMeasure(case.id, first_token_ms, duration_ms, bool(has_evidence))
+
+    assert has_evidence is True, f'{case.id}: expected evidence in the stream'
+    for fact in case.facts:
+        assert fact in text, f'{case.id}: missing fact {fact!r}: {text}'
+    for banned in case.forbidden:
+        assert banned not in text, f'{case.id}: forbidden {banned!r} in answer: {text}'
+
+    if case.kind == 'partial':
+        assert MISSING_PARTS_PREFIX in text, text
+        missing_text = text.split(MISSING_PARTS_PREFIX, 1)[1]
+        assert case.missing_hint in missing_text.lower(), text
+
+    return StreamMeasure(case.id, first_token_ms, duration_ms, bool(has_evidence))
+
+
+def test_eval_streaming_ttft(eval_corpus: EvalCorpus) -> None:
+    """Stream the 15 questions twice and report the TTFT p50/p90 (§12.4).
+
+    Two rounds give 30 `first_token_ms` samples — enough for the provisional
+    p50/p90 at the cost of one extra pass. The §12.4 target (p50 <= 2 s,
+    p90 <= 4 s) is checked in `test_mode_summary` and never asserted: it
+    stays provisional until confirmed with these numbers (task 7.15).
+    """
+    document_ids = [eval_corpus.document_ids[name] for name in (MANUAL, POLICY, XT200)]
+    for _round in range(STREAM_ROUNDS):
+        for case in CASES:
+            _STREAM_MEASURES.append(_run_stream(case, document_ids))
+
+    samples = [measure.first_token_ms for measure in _STREAM_MEASURES]
+    print(
+        f'TTFT p50={_percentile(samples, 50)}ms p90={_percentile(samples, 90)}ms '
+        f'n={len(samples)}'
+    )
+    model_called = [m.first_token_ms for m in _STREAM_MEASURES if m.has_evidence]
+    layer1_only = [m.first_token_ms for m in _STREAM_MEASURES if not m.has_evidence]
+    print(
+        f'TTFT model_called p50={_percentile(model_called, 50)}ms '
+        f'p90={_percentile(model_called, 90)}ms n={len(model_called)}'
+    )
+    print(
+        f'TTFT layer1_only p50={_percentile(layer1_only, 50)}ms '
+        f'p90={_percentile(layer1_only, 90)}ms n={len(layer1_only)}'
+    )
+
+
+# --------------------------------------------------------------------------
+# Task 7.32: mixed questions over two REAL PDFs of very different sizes (the
+# 1-page CRLV and the 223-page SM-G97X manual), measuring the per-document
+# quota of task 7.29 against the previous behaviour (quota 0).
+# --------------------------------------------------------------------------
+
+# The user's own PDFs are read from the default storage of `backend/.env`
+# (`SQLITE_PATH=data/app.db`, `DOCUMENTS_DIR=data/documents`), only to copy
+# them: the catalog is opened read-only and the copies are indexed in a
+# pytest temporary directory. Without them the mixed tests are skipped.
+REAL_DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
+REAL_CRLV = 'CRLVE_QIS2867_2026.pdf'
+REAL_MANUAL = 'SM-G97X_UG_BR_Rev.1.4.pdf'
+# The plate is already part of the CRLV file name; no other field of the
+# document is written here.
+CRLV_PLATE = re.compile(r'QIS\W?2867', re.IGNORECASE)
+MIXED_QUOTAS = (0, 1)
+
+
+def _real_pdf_paths() -> dict[str, Path]:
+    """Map each required real PDF to its stored copy, or {} when unavailable."""
+    catalog = REAL_DATA_DIR / 'app.db'
+    if not catalog.is_file():
+        return {}
+    connection = sqlite3.connect(f'{catalog.as_uri()}?mode=ro', uri=True)
+    try:
+        rows = connection.execute(
+            'SELECT id, filename FROM documents WHERE status = ?', ('ready',)
+        ).fetchall()
+    finally:
+        connection.close()
+    paths: dict[str, Path] = {}
+    for document_id, filename in rows:
+        path = REAL_DATA_DIR / 'documents' / f'{document_id}.pdf'
+        if filename in (REAL_CRLV, REAL_MANUAL) and path.is_file():
+            paths[filename] = path
+    return paths if len(paths) == 2 else {}
+
+
+@dataclass(frozen=True)
+class MixedCase:
+    """One mixed question: a CRLV part (the plate) and a manual part.
+
+    `known_gap` documents a measured failure of the quota (docs/eval.md,
+    task 7.32); such a case runs as a non-strict xfail, so a fix shows up
+    as XPASS instead of being hidden.
+    """
+
+    id: str
+    question: str
+    manual_fact: str
+    manual_page: int
+    known_gap: str = ''
+
+
+MIXED_CASES: list[MixedCase] = [
+    MixedCase(
+        id='CM1',
+        question=(
+            'Qual é a placa do veículo no CRLV e como capturar a tela no celular?'
+        ),
+        manual_fact='Diminuir volume',
+        manual_page=46,
+    ),
+    MixedCase(
+        id='CM2',
+        question='Como capturar a tela no celular e qual é a placa do veículo?',
+        manual_fact='Diminuir volume',
+        manual_page=46,
+    ),
+    # Task 7.33: CM2 was a known gap (xfail) until small 1-page documents
+    # became a single chunk; CM3 is the same question with the parts swapped.
+    MixedCase(
+        id='CM3',
+        question='Qual é a placa do veículo e como capturar a tela no celular?',
+        manual_fact='Diminuir volume',
+        manual_page=46,
+    ),
+]
+
+
+def _mixed_param(case: MixedCase):
+    marks = (
+        [pytest.mark.xfail(reason=case.known_gap, strict=False)]
+        if case.known_gap
+        else []
+    )
+    return pytest.param(case, id=case.id, marks=marks)
+
+
+@pytest.fixture(scope='module')
+def real_mixed_corpus(tmp_path_factory, eval_corpus):
+    """Index copies of the real CRLV and manual once (~890 chunks, ~US$ 0.002).
+
+    Depends on `eval_corpus` so the calibrated settings it pins (CHUNK_SIZE,
+    K, threshold, real credentials) are active while indexing here too.
+    """
+    sources = _real_pdf_paths()
+    if not sources:
+        pytest.skip(
+            f'{REAL_CRLV} and {REAL_MANUAL} are not ready in backend/data '
+            '(catalog or PDF missing)'
+        )
+    data_dir = tmp_path_factory.mktemp('regression-mixed')
+    patch = pytest.MonkeyPatch()
+    try:
+        corpus = EvalCorpus(
+            document_ids={},
+            documents_dir=data_dir / 'documents',
+            chroma_dir=data_dir / 'chroma',
+            sqlite_path=data_dir / 'app.db',
+        )
+        patch.setattr(settings, 'documents_dir', corpus.documents_dir)
+        patch.setattr(settings, 'chroma_dir', corpus.chroma_dir)
+        patch.setattr(settings, 'sqlite_path', corpus.sqlite_path)
+        db.init()
+        for filename in (REAL_MANUAL, REAL_CRLV):
+            with sources[filename].open('rb') as stream:
+                document_id = str(upload_document(filename, stream).id)
+            index_document(document_id)
+            row = db.get(document_id)
+            assert row is not None and row['status'] == 'ready', (
+                f'indexing failed for {filename}'
+            )
+            corpus.document_ids[filename] = document_id
+        yield corpus
+    finally:
+        patch.undo()
+
+
+@pytest.fixture
+def mixed_storage(real_mixed_corpus, monkeypatch):
+    """Point the settings at the real mixed corpus (after `_eval_storage`)."""
+    monkeypatch.setattr(settings, 'documents_dir', real_mixed_corpus.documents_dir)
+    monkeypatch.setattr(settings, 'chroma_dir', real_mixed_corpus.chroma_dir)
+    monkeypatch.setattr(settings, 'sqlite_path', real_mixed_corpus.sqlite_path)
+    return real_mixed_corpus
+
+
+@dataclass(frozen=True)
+class MixedMeasure:
+    """One mixed answer: CRLV chunks in context and what the answer did."""
+
+    case_id: str
+    quota: int
+    crlv_chunks: int
+    has_evidence: bool
+    plate_answered: bool
+    plate_missing: bool
+    crlv_cited: bool
+    manual_answered: bool
+
+
+_MIXED_MEASURES: list[MixedMeasure] = []
+
+
+def _ask_mixed(case: MixedCase, corpus: EvalCorpus, quota: int) -> MixedMeasure:
+    """Retrieve and answer `case` with `MIN_CHUNKS_PER_DOCUMENT=quota`.
+
+    Only flags and counts are kept (never the question or the answer text).
+    """
+    crlv_id = corpus.document_ids[REAL_CRLV]
+    document_ids = [corpus.document_ids[REAL_MANUAL], crlv_id]
+    mp = pytest.MonkeyPatch()
+    try:
+        mp.setattr(settings, 'min_chunks_per_document', quota)
+        chunks = rag_service._retrieve(case.question, document_ids)
+        response = rag_service.answer_question(
+            ChatRequest(question=case.question, document_ids=document_ids)
+        )
+    finally:
+        mp.undo()
+    body, _, missing = response.answer.partition(MISSING_PARTS_PREFIX)
+    pages = {(source.filename, source.page) for source in response.sources}
+    measure = MixedMeasure(
+        case_id=case.id,
+        quota=quota,
+        crlv_chunks=sum(1 for c in chunks if c.metadata['document_id'] == crlv_id),
+        has_evidence=response.has_evidence,
+        plate_answered=bool(CRLV_PLATE.search(body)),
+        plate_missing='placa' in missing.lower(),
+        crlv_cited=any(filename == REAL_CRLV for filename, _ in pages),
+        manual_answered=(
+            case.manual_fact in body and (REAL_MANUAL, case.manual_page) in pages
+        ),
+    )
+    _MIXED_MEASURES.append(measure)
+    return measure
+
+
+@pytest.mark.parametrize('case', [_mixed_param(case) for case in MIXED_CASES])
+def test_mixed_crlv_manual(case: MixedCase, mixed_storage: EvalCorpus) -> None:
+    """Ask the mixed question without the quota (0) and with it (1).
+
+    Quota 0 is the behaviour before task 7.29 and is only measured. With
+    quota 1, the CRLV must reach the context (the deterministic guarantee of
+    the quota) and both parts must be answered: the plate from the CRLV and
+    the manual fact with its page, without the CRLV part among the gaps.
+    """
+    by_quota = {quota: _ask_mixed(case, mixed_storage, quota) for quota in MIXED_QUOTAS}
+    for measure in by_quota.values():
+        print(
+            f'{measure.case_id} quota={measure.quota} '
+            f'crlv_chunks={measure.crlv_chunks} has_evidence={measure.has_evidence} '
+            f'plate_answered={measure.plate_answered} '
+            f'plate_missing={measure.plate_missing} crlv_cited={measure.crlv_cited} '
+            f'manual_answered={measure.manual_answered}'
+        )
+
+    with_quota = by_quota[1]
+    assert with_quota.crlv_chunks >= 1, f'{case.id}: no CRLV chunk in the context'
+    assert with_quota.has_evidence, f'{case.id}: no evidence with the quota'
+    assert with_quota.manual_answered, f'{case.id}: manual part not answered'
+    assert not with_quota.plate_missing, f'{case.id}: plate listed as not found'
+    assert with_quota.plate_answered, f'{case.id}: plate not in the answer'
+    assert with_quota.crlv_cited, f'{case.id}: CRLV not among the sources'
+
+
+def test_mode_summary() -> None:
+    """Print the cross-mode comparison of task 7.15 (nothing is asserted).
+
+    Definition order makes this the last test of the module, so it sees every
+    measurement collected above: the `has_evidence` agreement between the
+    JSON modes, the mean duration per mode (the prompt and the retrieval
+    context are the same in all modes, so durations compare what token usage
+    cannot — the services do not expose it) and the §12.4 TTFT target check.
+    """
+    if not _EVIDENCE_AGREEMENT and not _STREAM_MEASURES:
+        pytest.skip('no mode measurements collected (run the whole module)')
+
+    agreed = sum(1 for match in _EVIDENCE_AGREEMENT.values() if match)
+    print(
+        f'has_evidence agreement with_sources/no_sources: '
+        f'{agreed}/{len(_EVIDENCE_AGREEMENT)}'
+    )
+
+    def _mean(values: list[int]) -> int:
+        return sum(values) // len(values) if values else 0
+
+    stream_total = [measure.duration_ms for measure in _STREAM_MEASURES]
+    stream_ttft = [measure.first_token_ms for measure in _STREAM_MEASURES]
+    print(
+        f'mean duration_ms with_sources={_mean(list(_JSON_WITH_SOURCES_MS.values()))} '
+        f'no_sources={_mean(list(_JSON_NO_SOURCES_MS.values()))} '
+        f'stream_total={_mean(stream_total)} '
+        f'stream_first_token={_mean(stream_ttft)}'
+    )
+    if stream_ttft:
+        p50 = _percentile(stream_ttft, 50)
+        p90 = _percentile(stream_ttft, 90)
+        met = p50 <= 2_000 and p90 <= 4_000
+        state = 'met' if met else 'NOT met'
+        print(
+            f'PRD 12.4 TTFT target p50<=2000ms p90<=4000ms: {state} '
+            f'(p50={p50}ms p90={p90}ms, provisional)'
+        )

@@ -12,8 +12,10 @@ Os valores marcados "validado na Sprint 3" foram calibrados com o conjunto de [e
 | Tamanho máximo do PDF | 20 MB | `MAX_UPLOAD_MB` |
 | Máximo de páginas por PDF | 500 | `MAX_PDF_PAGES` |
 | Chunk / overlap | 500 / 200 caracteres (validado na Sprint 3) | `CHUNK_SIZE`, `CHUNK_OVERLAP` |
+| Documento pequeno em um só trecho | PDF de 1 página com até 4.000 caracteres de texto extraído vira um único chunk, sem o splitter (0 desliga; tarefa 7.33) | `SMALL_DOCUMENT_MAX_CHARS` |
 | Chunks recuperados (top-k) | 8 no total, entre todos os documentos selecionados (validado na Sprint 3) | `RETRIEVAL_K` |
 | Limiar mínimo de relevância | 0,35 no score normalizado 0–1 (validado na Sprint 3) | `RELEVANCE_THRESHOLD` |
+| Cota mínima por documento | 1 trecho por documento selecionado, só com 2 ou mais documentos e dentro de `RETRIEVAL_K`, com o mesmo limiar (0 desliga; tarefa 7.29) | `MIN_CHUNKS_PER_DOCUMENT` |
 | Modelo de chat / embeddings | Sem default no código; definir no `.env` | `CHAT_MODEL`, `EMBEDDING_MODEL` |
 | Temperatura | 0 | `CHAT_TEMPERATURE` |
 | Timeout do provedor | 60 s, 1 nova tentativa em erro transitório | `PROVIDER_TIMEOUT_S` |

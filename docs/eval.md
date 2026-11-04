@@ -173,3 +173,75 @@ Respostas da V2d nas perguntas que mudaram:
 - **V2a (rascunho descartado).** Com o primeiro texto do V2 e `has_evidence` como primeiro campo do schema, o P2 ainda voltava `has_evidence: false`, com as duas partes em `missing`, e o S3 ganhava um `missing` que a pergunta não pedia ("o procedimento após a restauração"). Duas mudanças resolveram os dois casos nas três execuções seguintes: as regras 3 e 4 passaram a dizer que cada parte é verificada separadamente, que `missing` tem só partes pedidas e não respondidas, e que `has_evidence` é verdadeiro quando há ao menos uma afirmação. Além disso, `has_evidence` virou o último campo do schema, para o modelo escrever as afirmações antes de decidir.
 - **Fora do tema próximo (O3, O4):** o modelo devolve `has_evidence: false`, com `claims` vazio e a pergunta inteira em `missing` (ex.: `["configuração de VPN"]`). O código ignora `missing` sem afirmação válida e devolve a resposta fixa.
 - **Afirmação a mais:** no S5 e no P1, o modelo acrescentou uma afirmação correta, mas não pedida (o limite de 70% do adiantamento; a cobertura da garantia). As duas estão no trecho citado, mas a regra 2 ("afirmações que respondem à pergunta") não foi seguida à risca.
+
+## Cota mínima por documento (tarefa 7.29)
+
+Em 4 de novembro de 2026, com `MIN_CHUNKS_PER_DOCUMENT=1` (PRD §6.2, passo 3), o conjunto foi rodado pela regressão opcional (`pytest -m regression`: as 15 perguntas com fontes, sem fontes em JSON e duas vezes em streaming, com os 3 documentos selecionados), com e sem a cota. Mesma configuração (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`, `gpt-4o-mini`, `text-embedding-3-small`).
+
+| Execução | Testes | `has_evidence` com/sem fontes | TTFT p50 / p90 | Camada 1 p50 | Duração média com fontes |
+| --- | --- | --- | --- | --- | --- |
+| Cota 0 (comportamento anterior) | 32/32 | 15/15 | 952 / 1.172 ms | 422 ms | 1,32 s |
+| Cota 1, buscas em série (descartada) | 32/32 | 15/15 | 1.952 / 2.187 ms | 1.484 ms | 2,32 s |
+| Cota 1, buscas em paralelo (final) | 32/32 | 15/15 | 1.062 / 1.452 ms | 452 ms | 1,53 s |
+
+- Nenhuma pergunta do conjunto regrediu: os critérios da regressão (fato esperado, página nas fontes, resposta fixa fora do tema, lacuna nas parciais, injeção ignorada) passaram nas duas configurações.
+- O conjunto não reproduz o problema que motivou a cota: os fatos das perguntas ficam em documentos de tamanho parecido, e o documento certo já aparecia no top-8 global. O caso de um documento pequeno ao lado de um grande é coberto por `backend/tests/test_retrieval_quota.py`. Falta uma pergunta mista com PDFs reais de tamanhos muito diferentes (ex.: CRLV + manual).
+- Custo: com N documentos, a consulta faz N + 1 buscas, e cada uma gera o embedding da pergunta. Em série, isso somava cerca de 1 s com 3 documentos. Em paralelo, o acréscimo medido foi de cerca de 0,1 s no p50 do TTFT, dentro da meta da §12.4.
+
+### Pergunta mista com PDFs reais de tamanhos muito diferentes (tarefa 7.32)
+
+Em 4 de novembro de 2026, com os dois PDFs reais do catálogo (`backend/data`, ambos `ready`): `CRLVE_QIS2867_2026.pdf` (1 página, 5 chunks) e `SM-G97X_UG_BR_Rev.1.4.pdf` (223 páginas, 890 chunks). A regressão opcional copia os dois arquivos para uma pasta temporária e os reindexa, sem tocar em `backend/data`. Os dois documentos ficam selecionados em todas as perguntas. Mesma configuração (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`, `gpt-4o-mini`, `text-embedding-3-small`, temperatura 0). Cada pergunta roda com `MIN_CHUNKS_PER_DOCUMENT=0` (comportamento anterior) e `=1` (padrão). Fato esperado do CRLV: a placa (QIS2867, p. 1). Fato esperado do manual: a captura de tela com as teclas Diminuir volume e Ligar/Desligar (p. 46).
+
+| ID | Pergunta | Na regressão | Trechos do CRLV no contexto (cota 0 / 1) | Placa respondida, cota 0 | Placa respondida, cota 1 | Manual (p. 46) |
+| --- | --- | --- | --- | --- | --- | --- |
+| CM1 | Qual é a placa do veículo no CRLV e como capturar a tela no celular? | sim | 3–4 / 3–4 (iguais) | 7/8 | 8/8 | 16/16 |
+| CM2 | Como capturar a tela no celular e qual é a placa do veículo? | sim (`xfail`) | 0 / 1 | 0/8 ("não encontrei: a placa") | 0/8 ("não encontrei: a placa") | 16/16 |
+| CM3 | Qual é a placa do veículo e como capturar a tela no celular? | não (só sondagem) | 0 / 1 | 0/2 ("não encontrei") | 0/2 ("não encontrei") | 4/4 |
+
+Contagens: 5 rodadas de sondagem em script à parte e 3 execuções de `pytest -m regression -k mixed`, para CM1 e CM2; CM3 só nas 2 da sondagem.
+
+- **A cota não resolve o caso real.** No CM2 e no CM3, que não citam o CRLV pelo nome, o melhor trecho do CRLV tem score 0,472, acima do limiar mas abaixo do 8º trecho do manual (0,501–0,527). Sem a cota, nenhum trecho do CRLV entra. Com a cota, entra 1, e a placa continua em "Não encontrei nos documentos selecionados". A cota faz o que promete (o documento pequeno chega ao contexto), mas o trecho reservado é o errado.
+- **Causa: a extração do formulário separa o rótulo do valor.** O texto que o `PyPDFLoader` extrai do CRLV traz primeiro a linha de rótulos ("PLACA", "EXERCÍCIO", …), no caractere 352, e o valor da placa só no 1.167. Com `CHUNK_SIZE=500`, rótulo e valor ficam em chunks diferentes. O trecho mais parecido com a pergunta é o que tem a palavra "placa" (chunk 0, só rótulos). O valor está nos chunks 3 e 4, sem rótulo, e fica em 2º lugar dentro do CRLV (0,439).
+- **CM1:** o nome "CRLV" na pergunta já põe 3–4 trechos do CRLV no top-8 global, com cota ou sem ela, e o contexto é o mesmo nas duas configurações. A falha de 1 em 8 sem cota não foi um "não encontrei": o modelo citou o CRLV, mas pôs na placa o valor de outro campo. Como o contexto é igual, isso é variação do modelo, não efeito da cota.
+- **Cota maior, só como experimento** (sondagem do CM2 e do CM3, `MIN_CHUNKS_PER_DOCUMENT` de 2, 3 e 5, sem mudar o padrão): o "não encontrei" some e o CRLV passa a ser citado, mas nenhuma das 8 respostas trouxe a placa. Nas 5 conferidas no texto, a "placa" informada era o **número do chassi**. Resposta errada com citação é pior do que a lacuna declarada. Por isso a cota maior foi rejeitada.
+- **Extração `layout`, só como experimento** (CRLV indexado com `PyPDFLoader(extraction_mode='layout')`, 16 chunks): rótulo e valor ficam a 180 caracteres um do outro, mas o texto vem cheio de espaços de alinhamento. A placa saiu como "não encontrei" nas 3 perguntas, com cota 0 e com cota 1. Não resolve sem mudar também o chunking.
+- **Custo:** a regressão indexa o manual a cada execução (890 chunks, cerca de US$ 0,002). `pytest -m regression -k mixed`, que também indexa o corpus sintético, levou de 22 a 28 s.
+
+**Conclusão:** a cota (`MIN_CHUNKS_PER_DOCUMENT=1`) fica como está, porque não regrediu nada e garante que o documento pequeno chegue ao contexto. Mas ela **não** elimina o "não encontrei" no caso real do CRLV quando a pergunta não cita o documento pelo nome. O CM2 fica na regressão como `xfail` não estrito: se a falha for corrigida, ele aparece como XPASS. O problema está na extração e no chunking de PDFs de formulário, não na cota. Próximo passo proposto (mudança de pipeline, que depende do usuário): tratar documentos pequenos como uma unidade, com o documento inteiro como um chunk quando ele couber em poucos milhares de caracteres, ou associar rótulos e valores na extração. Medir com CM1–CM3, cuidando para não trocar o "não encontrei" por um campo errado.
+
+**Superado pela tarefa 7.33** (seção abaixo): com o CRLV indexado como um único trecho, CM1–CM3 passam e o `xfail` do CM2 foi removido.
+
+### Documento pequeno em um único trecho (tarefa 7.33)
+
+Em 4 de novembro de 2026, por decisão do usuário, um PDF de **1 página** cujo texto extraído tenha até `SMALL_DOCUMENT_MAX_CHARS` caracteres (padrão 4.000) passou a ser indexado como **um único chunk**, sem o splitter (PRD §6.1, passo 4). O CRLV tem 1.584 caracteres extraídos e passa de 5 chunks para 1, com rótulo e valor da placa no mesmo trecho. Mesmos PDFs reais (copiados para uma pasta temporária e reindexados) e mesma configuração da 7.32 (`CHUNK_SIZE=500`, `RETRIEVAL_K=8`, `RELEVANCE_THRESHOLD=0.35`, `gpt-4o-mini`, `text-embedding-3-small`, temperatura 0).
+
+**Score do trecho único (medido antes de implementar).** Similaridade de cosseno entre a pergunta e o texto, com os mesmos embeddings da indexação:
+
+| Pergunta | Documento inteiro (1 chunk) | 5 chunks de 500 (melhor / o do valor da placa) |
+| --- | --- | --- |
+| CM1 | 0,585 | 0,594 / 0,593 |
+| CM2 | 0,460 | 0,472 / 0,439 |
+| CM3 | 0,457 | 0,472 / 0,436 |
+| "Qual é a placa do veículo?" | 0,553 | 0,551 / 0,488 |
+
+O trecho grande perde pouco score (no máximo 0,015) e fica com folga de cerca de 0,11 sobre o limiar de 0,35. No CM2 e no CM3 ele continua abaixo do 8º trecho do manual (0,50–0,53), então quem o leva ao contexto é a cota da 7.29.
+
+**Resultado** (sondagem em script à parte, com `MIN_CHUNKS_PER_DOCUMENT=1`, o padrão, e 8 execuções por pergunta; "campo errado" = a resposta fala da placa sem trazer QIS2867):
+
+| ID | Trechos do CRLV no contexto | Placa correta | "Não encontrei: a placa" | Campo errado | Manual (p. 46) |
+| --- | --- | --- | --- | --- | --- |
+| CM1 | 1 | 8/8 | 0/8 | 0/8 | 8/8 |
+| CM2 | 1 | 8/8 (antes 0/8) | 0/8 (antes 8/8) | 0/8 | 8/8 |
+| CM3 | 1 | 8/8 (antes 0/2) | 0/8 | 0/8 | 8/8 |
+
+Com a cota desligada (`MIN_CHUNKS_PER_DOCUMENT=0`, 4 execuções por pergunta): CM1 4/4, mas CM2 e CM3 voltam ao "não encontrei" (0/4), porque o CRLV não entra no top-8 global. **A correção depende das duas mudanças juntas:** a cota leva o documento pequeno ao contexto, e o trecho único garante que ele chegue com rótulo e valor.
+
+**Regressão completa** (`pytest -m regression`, com CM3 acrescentado à regressão e sem o `xfail` do CM2): **35/35**. As 15 perguntas de PDFs sintéticos passaram nos três modos, com `has_evidence` igual com e sem fontes em 15/15 e TTFT p50/p90 de 1.125/1.438 ms (meta da §12.4 atendida). Nenhum PDF do corpus sintético tem 1 página (10, 6 e 2 páginas), então os chunks deles não mudaram. Na mesma execução, CM1–CM3 passaram com a cota 1; com a cota 0, só o CM1.
+
+**Escolha do limite (4.000).** Cerca de 2,5 vezes o CRLV e o mesmo volume do contexto inteiro (8 × 500 caracteres), por volta de 1.000 tokens, muito abaixo do limite de entrada do modelo de embeddings. Páginas comuns de texto corrido (o manual tem de 1.000 a 2.200 caracteres por página) também cabem, mas só documentos de 1 página são afetados. Acima do limite, o splitter normal continua valendo.
+
+**Limitações:**
+
+- Documentos de 2 ou mais páginas continuam no splitter, mesmo que curtos: um chunk único só poderia citar uma página. Um formulário de 2 páginas com rótulo e valor separados ainda pode cair no mesmo problema.
+- O `excerpt` da fonte continua sendo os primeiros `EXCERPT_MAX_CHARS` (500) caracteres do chunk. No CRLV, isso mostra o começo do formulário (rótulos), não o valor da placa, que está no caractere 1.167. A resposta e a citação estão certas; só o trecho exibido no card não mostra o valor.
+- Um documento pequeno ocupa 1 das `RETRIEVAL_K` vagas, mas pode levar até 4.000 caracteres ao contexto, em vez de 500.

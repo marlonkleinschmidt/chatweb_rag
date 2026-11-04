@@ -186,16 +186,33 @@ def _load_pages(file_path: str) -> list[LCDocument]:
     return pages
 
 
+def _is_small_document(pages: list[LCDocument]) -> bool:
+    """Task 7.33: one page whose whole text fits in `SMALL_DOCUMENT_MAX_CHARS`.
+
+    Limited to one page so the single chunk cites the right page; 0 disables.
+    """
+    limit = settings.small_document_max_chars
+    return limit > 0 and len(pages) == 1 and len(pages[0].page_content) <= limit
+
+
 def _split(
     document_id: str, filename: str, pages: list[LCDocument]
 ) -> list[LCDocument]:
-    """Split pages into chunks with exactly the PRD §8.2 metadata."""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap
-    )
+    """Split pages into chunks with exactly the PRD §8.2 metadata.
+
+    A single-page document whose text fits in `SMALL_DOCUMENT_MAX_CHARS`
+    becomes one chunk (task 7.33), so form labels and values stay together.
+    """
+    if _is_small_document(pages):
+        pieces = pages
+    else:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap
+        )
+        pieces = splitter.split_documents(pages)
     now = db.utc_now()
     chunks: list[LCDocument] = []
-    for chunk_index, piece in enumerate(splitter.split_documents(pages)):
+    for chunk_index, piece in enumerate(pieces):
         chunks.append(
             LCDocument(
                 page_content=piece.page_content,

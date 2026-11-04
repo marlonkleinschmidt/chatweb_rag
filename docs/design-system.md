@@ -15,7 +15,7 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 | Token | Paleta | Hex | Uso | Restrição / contraste medido (WCAG 2.x) |
 | --- | --- | --- | --- | --- |
 | `canvas` | `app-gray-850` | `#1F2729` | Fundo global | — |
-| `surface` | `app-gray-900` | `#121214` | Painéis, sidebar, cards, header | Separa melhor os painéis do fundo que `app-gray-800` (1,23:1 contra 1,05:1) |
+| `surface` | `app-gray-900` | `#121214` | Painéis, cards, header, painel de documentos | Separa melhor os painéis do fundo que `app-gray-800` (1,23:1 contra 1,05:1) |
 | `surface-raised` | `app-gray-700` | `#3A3A40` | Inputs, bolha do usuário, modal | — |
 | `border` | `app-gray-600` | `#3D3D44` | Bordas e divisores; fundo de hover de `secondary`/`ghost` | Decorativo; bordas de controle usam `control-border` |
 | `control-border` | `app-gray-200` | `#A8A8B3` | Borda de campos e do botão `secondary` | ≥ 3:1: 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
@@ -57,6 +57,8 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 | `danger` | `app-red-700` | `#B42335` | 6,50 (surface), 6,12 (canvas) |
 | `on-danger` | `white` | `#FFFFFF` | Texto do botão `danger`: 6,50 (5,62 no hover com `brightness-110`) |
 
+**Painel de documentos (`surface`, tarefa 7.30)**: no claro o painel é `white` e o card `DocumentItem` (`canvas` #F8F8F8) fica levemente mais escuro que ele (1,06:1); no escuro o painel é `app-gray-900` #121214 e o card fica mais claro (1,23:1). Elementos que ficam direto no painel no claro: `text-primary` 18,71 (título), `text-secondary` 10,11 (dica de upload, aviso de envio à OpenAI, estado vazio, contador de seleção), `accent` 6,42 (ícone do aviso, ≥ 3:1 como gráfico), `primary` 6,42 (fundo do botão de upload e borda do card selecionado, ≥ 3:1), `focus` 6,42, `control-border` 4,67 (botão `secondary` "Tentar novamente"). `border` dá 2,36, decorativo: o card se separa do painel pelo fundo `canvas`. Badges de estado e texto de falha ficam dentro do card, sobre `canvas` (valores da tabela acima). O `AlertBanner` mantém fundo `surface` próprio, igual ao do painel, separado pela borda colorida.
+
 `app-green-700`, `app-amber-700` e `app-red-700` são variantes escuras próprias, fora da paleta do usuário, definidas no `@theme` junto de `app-amber-300` e `app-red-300`.
 
 ## Tipografia, espaço e forma
@@ -82,10 +84,10 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 
 | Componente | Variantes / props | Regras |
 | --- | --- | --- |
-| `BaseButton` | `primary`, `secondary`, `ghost`, `danger`; `loading`, `disabled` | Altura ≥ 40 px; `loading` desabilita e mostra spinner com `aria-busy` |
+| `BaseButton` | `primary`, `secondary`, `ghost`, `danger`; `loading`, `disabled`, `iconOnly` | Altura ≥ 40 px; `loading` desabilita e mostra spinner com `aria-busy`; `iconOnly` é quadrado de 40 px, só ícone, com `aria-label` e `title` obrigatórios (spinner substitui o ícone em `loading`) |
 | `BaseField` | `input`, `textarea`; `label`, `hint`, `error` | Label sempre visível; erro abaixo, ligado por `aria-describedby` |
 | `StatusBadge` | `status` | Texto + ícone + cor (ver [api.md](api.md#estados-do-documento)) |
-| `DocumentItem` | `document`, `selected` | Checkbox só para `ready`; menu com "Remover" |
+| `DocumentItem` | `document`, `selected` | Checkbox só para `ready`; botão "Remover" só com ícone de lixeira (`ghost`, `iconOnly`, `aria-label`/`title` "Remover {nome}", tarefa 7.28), sempre com diálogo de confirmação |
 | `ConfirmDialog` | `title`, `message`, `confirmLabel` | Foco preso, `Esc` cancela, ação perigosa em `danger` |
 | `ChatMessage` | `role`, `content`, `sources` | Usuário à direita em `surface-raised`; assistente à esquerda em `surface`; `[n]` clicável rola até a fonte |
 | `SourceCard` | `source`, `removed` | Arquivo, "Página n" (omitida se nula), trecho recolhível; com `removed`, etiqueta "Documento removido" (ícone + texto em `text-secondary`), sem esconder a fonte |

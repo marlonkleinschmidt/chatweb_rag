@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId } from 'vue'
 
+import MarkdownText from '@/components/domain/MarkdownText.vue'
 import SourceCard from '@/components/domain/SourceCard.vue'
 import { ptBR } from '@/locales/pt-BR'
 import type { Source } from '@/types/api'
@@ -12,8 +13,11 @@ const props = withDefaults(
     sources?: Source[]
     // Tells whether a source's document was removed after the answer (flag shown on the card).
     isRemoved?: (documentId: string) => boolean
+    // Streamed answers (show sources off) arrive as markdown (RF-24). With sources the
+    // answer stays plain text with [n] buttons, exactly as before (PRD §12.9, criterion 1).
+    markdown?: boolean
   }>(),
-  { sources: () => [], isRemoved: () => false },
+  { sources: () => [], isRemoved: () => false, markdown: false },
 )
 
 type Segment = { kind: 'text'; text: string } | { kind: 'cite'; index: number }
@@ -62,7 +66,8 @@ async function goToSource(index: number): Promise<void> {
       <span class="sr-only">{{
         role === 'user' ? ptBR.chat.userLabel : ptBR.chat.assistantLabel
       }}</span>
-      <p class="whitespace-pre-wrap break-words">
+      <MarkdownText v-if="markdown" :text="content" />
+      <p v-else class="whitespace-pre-wrap break-words">
         <template v-for="(segment, i) in segments" :key="i">
           <span v-if="segment.kind === 'text'" v-text="segment.text" />
           <button

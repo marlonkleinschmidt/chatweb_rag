@@ -8,6 +8,7 @@ A ingestão fica em `services/document_service.py` e a consulta em `services/rag
 2. Extrair páginas com `PyPDFLoader`; converter `page` para base 1.
 3. Se todas as páginas extraírem menos de 20 caracteres, marcar `failed` com `pdf_no_text`.
 4. Dividir com `RecursiveCharacterTextSplitter(CHUNK_SIZE, CHUNK_OVERLAP)`, preservando a página de origem.
+   - **Documento pequeno (tarefa 7.33):** PDF de 1 página com até `SMALL_DOCUMENT_MAX_CHARS` caracteres de texto extraído (padrão 4.000) vira um único chunk (`chunk_index` 0, `page` 1), sem o splitter, para que rótulos e valores de formulários fiquem juntos. Só vale para 1 página, para a citação apontar a página certa. `0` desliga. Documentos já indexados só mudam se forem removidos e enviados de novo.
 5. Gravar no Chroma (coleção com `hnsw:space = cosine`) com IDs `{document_id}:{chunk_index}`. Embeddings vão em lote.
 6. Atualizar `page_count`, `chunk_count`, `status = ready` e `updated_at`.
 
@@ -16,11 +17,12 @@ A ingestão fica em `services/document_service.py` e a consulta em `services/rag
 1. Validar `ChatRequest` e confirmar que todos os documentos estão `ready`.
 2. Recuperar `RETRIEVAL_K` chunks com `similarity_search_with_relevance_scores`, filtro `{"document_id": {"$in": ids}}`.
 3. Descartar chunks com score abaixo de `RELEVANCE_THRESHOLD`.
+   - **Cota por documento (tarefa 7.29):** com 2 ou mais documentos selecionados e `MIN_CHUNKS_PER_DOCUMENT > 0`, cada documento também tem uma busca própria (filtro `{"document_id": id}`, k = cota), com o mesmo limiar. Os trechos dessas buscas são reservados primeiro (o 1º de cada documento, depois o 2º…, cada rodada por score) e as vagas que sobram até `RETRIEVAL_K` vêm do ranking global, sem duplicatas. O resultado fica ordenado por score. Documento sem trecho acima do limiar não recebe cota. As buscas rodam em paralelo (cada uma gera o embedding da pergunta). Com 1 documento, só a busca global roda, como antes. Vale para `/chat/query` (com e sem fontes) e `/chat/query/stream`.
 4. **Camada 1:** nenhum chunk restante → resposta fixa de evidência insuficiente, sem chamar o modelo.
 5. Numerar os chunks de 1 a n e montar o prompt.
 6. Chamar o modelo com `with_structured_output` no schema interno `{claims: [{text: str, cited: list[int]}], missing: list[str], has_evidence: bool}` (afirmações com seus trechos e partes da pergunta sem resposta; não atravessa o HTTP).
 7. **Camada 2:** `claim` com `cited` vazio ou índice inexistente é descartado. Se `has_evidence` for falso ou não sobrar nenhum `claim` válido → resposta fixa.
-8. O código monta o `answer`: cada `claim` válido com os seus marcadores antes da pontuação final (`texto [1][3].`), sem nenhum `[n]` ou `<trecho` escrito pelo modelo. Com `missing`, acrescenta o parágrafo "Não encontrei nos documentos selecionados: …"; com `claim` descartado, "Parte da resposta foi omitida porque não foi possível vinculá-la às fontes.". `sources` traz só a união dos índices dos `claims` válidos, com `excerpt` truncado em `EXCERPT_MAX_CHARS`.
+8. O código monta o `answer`: cada `claim` válido com os seus marcadores antes da pontuação final (`texto [1][3].`), renumerados de 1 a m na ordem da primeira aparição no `answer` (trecho citado mais de uma vez mantém o número), sem nenhum `[n]` ou `<trecho` escrito pelo modelo. Com `missing`, acrescenta o parágrafo "Não encontrei nos documentos selecionados: …"; com `claim` descartado, "Parte da resposta foi omitida porque não foi possível vinculá-la às fontes.". `sources` traz só a união dos índices dos `claims` válidos, com `excerpt` truncado em `EXCERPT_MAX_CHARS`.
 
 **Resposta fixa** (`has_evidence: false`, `sources: []`):
 

@@ -35,10 +35,9 @@ export const ptBR = {
     selectLabel: (filename: string) => `Selecionar ${filename}`,
     selectionCount: (count: number, max: number) => `${count} de ${max} selecionados`,
     selectionLimit: (max: number) => `Você pode selecionar até ${max} documentos por pergunta.`,
-    remove: 'Remover',
     removeLabel: (filename: string) => `Remover ${filename}`,
     removed: 'Documento removido.',
-    embeddingModelChanged: 'O modelo de embeddings mudou. Remova e envie os documentos novamente.',
+    embeddingModelChanged: 'O modelo de indexação mudou. Remova e envie os documentos novamente.',
   },
   upload: {
     label: 'Enviar PDF',
@@ -75,6 +74,9 @@ export const ptBR = {
       `Escreva uma pergunta entre ${min} e ${max} caracteres.`,
     send: 'Enviar',
     generating: 'Gerando resposta...',
+    stop: 'Parar',
+    showSourcesLabel: 'Exibir fontes',
+    showSourcesHint: 'Com as fontes desligadas, a resposta aparece aos poucos, sem citações.',
     userLabel: 'Você:',
     assistantLabel: 'Assistente:',
     sources: 'Fontes',
@@ -89,7 +91,7 @@ export const ptBR = {
   },
   errors: {
     configMissing: 'A URL do servidor não está configurada (VITE_API_BASE_URL).',
-    network: 'Não foi possível conectar ao servidor. Verifique se o backend está em execução.',
+    network: 'Não foi possível conectar ao servidor. Verifique se ele está em execução.',
     unexpected: 'Ocorreu um erro inesperado. Tente novamente.',
     // Fallbacks when the API error envelope is missing; normally the API message is shown.
     provider: 'O serviço de IA não respondeu corretamente. Tente novamente.',
