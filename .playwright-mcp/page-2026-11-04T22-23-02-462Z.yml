@@ -1,0 +1,41 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: verificando conexão..."
+      - button "Ativar tema claro" [ref=e17]
+  - main [ref=e21]:
+    - region [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Documentos" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Enviar PDF" [ref=e28]
+            - paragraph [ref=e29]: Um arquivo PDF por vez.
+            - paragraph [ref=e30]:
+              - generic [ref=e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=e34]: Carregando documentos...
+    - region [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - heading "Chat" [level=2] [ref=e40]
+          - button "Nova conversa" [ref=e41]
+          - paragraph [ref=e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e43]:
+          - paragraph [ref=e47]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=e48]:
+          - paragraph [ref=e50]: Selecione ao menos um documento pronto para fazer uma pergunta.
+          - generic [ref=e51]:
+            - generic [ref=e52] [cursor=pointer]:
+              - switch "Exibir fontes" [ref=e54]
+              - text: Exibir fontes
+            - paragraph [ref=e57]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+        - generic [ref=e58]:
+          - button "Anexar arquivo" [ref=e59]
+          - generic [ref=e62]:
+            - generic [ref=e63]: Pergunta
+            - textbox "Pergunta" [ref=e64]:
+              - /placeholder: Pergunte algo sobre os documentos selecionados
+            - paragraph [ref=e65]: Enter envia. Shift+Enter quebra a linha.
+          - button "Enviar" [disabled] [ref=e67]

@@ -68,10 +68,10 @@ function panelAttrs(tab: Tab): Record<string, string | undefined> {
     <header
       class="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border bg-surface px-4 py-3"
     >
-      <h1 class="flex items-center gap-2 text-lg font-bold">
+      <h1 class="flex items-center gap-2 text-xl font-semibold">
         <!-- Same drawing as public/favicon.svg, inlined so it follows the app theme -->
         <svg
-          class="size-6 shrink-0"
+          class="size-5 shrink-0"
           viewBox="0 0 512 512"
           fill="currentColor"
           aria-hidden="true"

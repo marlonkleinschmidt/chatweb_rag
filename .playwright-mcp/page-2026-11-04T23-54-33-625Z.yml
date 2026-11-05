@@ -1,0 +1,52 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: verificando conexão..."
+      - button "Ativar tema claro" [ref=e17]
+  - main [ref=e21]:
+    - region [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Documentos" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Enviar PDF" [ref=e28]
+            - paragraph [ref=e29]: Um arquivo PDF por vez.
+            - paragraph [ref=e30]:
+              - generic [ref=e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=e34]: Carregando documentos...
+    - region [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - heading "Chat" [level=2] [ref=e40]
+          - button "Nova conversa" [ref=e41]
+          - paragraph [ref=e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e43]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: "Você:"
+            - paragraph [ref=e47]: teste
+          - generic [ref=e49]:
+            - generic [ref=e50]: "Assistente:"
+            - paragraph [ref=e52]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=e54]:
+            - generic [ref=e55]: "Você:"
+            - paragraph [ref=e56]: asass
+          - generic [ref=e58]:
+            - generic [ref=e59]: "Assistente:"
+            - paragraph [ref=e61]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - paragraph [ref=e66]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=e67]:
+              - generic [ref=e68] [cursor=pointer]:
+                - switch "Exibir fontes" [ref=e70]
+                - text: Exibir fontes
+              - paragraph [ref=e73]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - generic [ref=e76]: Pergunta
+              - textbox "Pergunta" [ref=e77]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+              - paragraph [ref=e78]: Enter envia. Shift+Enter quebra a linha.
+            - button "Enviar" [disabled] [ref=e80]

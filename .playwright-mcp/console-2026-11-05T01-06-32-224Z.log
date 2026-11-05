@@ -1,0 +1,4 @@
+[    4095ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/v1/health' from origin 'http://localhost:5202' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5202/:0
+[    4100ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/v1/health:0
+[    4405ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/v1/documents' from origin 'http://localhost:5202' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5202/:0
+[    4405ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/v1/documents:0

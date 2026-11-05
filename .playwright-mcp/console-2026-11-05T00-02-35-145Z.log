@@ -1,0 +1,5 @@
+[    2283ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/v1/health' from origin 'http://localhost:5199' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5199/:0
+[    2304ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/v1/health:0
+[    2648ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/v1/documents' from origin 'http://localhost:5199' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5199/:0
+[    2648ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/v1/documents:0
+[   90314ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5199/@vite/client:1089

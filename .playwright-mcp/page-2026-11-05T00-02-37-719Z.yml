@@ -1,0 +1,43 @@
+- generic [ref=f4e3]:
+  - banner [ref=f4e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=f4e5]
+    - generic [ref=f4e11]:
+      - generic [ref=f4e12]:
+        - status [ref=f4e13]:
+          - generic [ref=f4e14]: "Servidor: indisponível"
+        - button "Tentar novamente" [ref=f4e17]
+      - button "Ativar tema escuro" [ref=f4e18]
+  - main [ref=f4e21]:
+    - region [ref=f4e22]:
+      - generic [ref=f4e23]:
+        - heading "Documentos" [level=2] [ref=f4e25]
+        - generic [ref=f4e26]:
+          - generic [ref=f4e27]:
+            - button "Enviar PDF" [ref=f4e28]
+            - paragraph [ref=f4e29]: Um arquivo PDF por vez.
+            - paragraph [ref=f4e30]:
+              - generic [ref=f4e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=f4e34]: Carregando documentos...
+    - region [ref=f4e37]:
+      - generic [ref=f4e38]:
+        - generic [ref=f4e39]:
+          - heading "Chat" [level=2] [ref=f4e40]
+          - button "Nova conversa" [ref=f4e41]
+          - paragraph [ref=f4e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=f4e43]:
+          - paragraph [ref=f4e47]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=f4e49]:
+          - generic [ref=f4e50]:
+            - paragraph [ref=f4e52]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=f4e53]:
+              - generic [ref=f4e54] [cursor=pointer]:
+                - switch "Exibir fontes" [checked] [ref=f4e56]
+                - text: Exibir fontes
+              - paragraph [ref=f4e59]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=f4e60]:
+            - generic [ref=f4e61]:
+              - generic [ref=f4e62]: Pergunta
+              - textbox "Pergunta" [ref=f4e63]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+              - paragraph [ref=f4e64]: Enter envia. Shift+Enter quebra a linha.
+            - button "Enviar" [disabled] [ref=f4e66]

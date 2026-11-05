@@ -61,7 +61,7 @@ async function confirmRemoval(): Promise<void> {
     <!-- On mobile/tablet the tab already names the panel, so the heading is screen-reader only -->
     <!-- not-sr-only resets padding, so the spacing lives on the wrapper -->
     <div class="shrink-0 lg:px-4 lg:pt-4">
-      <h2 :id="headingId" class="sr-only text-lg font-semibold lg:not-sr-only">
+      <h2 :id="headingId" class="sr-only text-sm font-semibold lg:not-sr-only">
         {{ ptBR.documents.heading }}
       </h2>
     </div>
@@ -119,12 +119,13 @@ async function confirmRemoval(): Promise<void> {
         <BaseIcon name="spinner" />
         {{ ptBR.documents.loading }}
       </p>
-      <p
+      <div
         v-else-if="store.loaded && store.documents.length === 0"
-        class="text-sm text-text-secondary"
+        class="flex flex-col items-center gap-2 text-sm text-text-secondary"
       >
-        {{ ptBR.documents.empty }}
-      </p>
+        <BaseIcon name="info" class="text-accent" />
+        <p>{{ ptBR.documents.empty }}</p>
+      </div>
 
       <template v-if="store.documents.length > 0">
         <p v-if="hasReady" class="text-meta text-text-secondary" aria-live="polite">

@@ -1,0 +1,52 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=f3e5]
+    - generic [ref=f3e11]:
+      - status [ref=f3e13]:
+        - generic [ref=f3e14]: "Servidor: conectado"
+      - button "Ativar tema claro" [ref=f3e17]
+  - main [ref=f3e21]:
+    - region [ref=f3e22]:
+      - generic [ref=f3e23]:
+        - heading "Documentos" [level=2] [ref=f3e25]
+        - generic [ref=f3e26]:
+          - generic [ref=f3e27]:
+            - button "Enviar PDF" [ref=f3e28]
+            - paragraph [ref=f3e29]: Um arquivo PDF por vez.
+            - paragraph [ref=f3e30]:
+              - generic [ref=f3e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=f3e34]: Carregando documentos...
+    - region [ref=f3e37]:
+      - generic [ref=f3e38]:
+        - generic [ref=f3e39]:
+          - heading "Chat" [level=2] [ref=f3e40]
+          - button "Nova conversa" [ref=f3e41]
+          - paragraph [ref=f3e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=f3e43]:
+          - generic [ref=f3e45]:
+            - generic [ref=f3e46]: "Você:"
+            - paragraph [ref=f3e47]: teste
+          - generic [ref=f3e49]:
+            - generic [ref=f3e50]: "Assistente:"
+            - paragraph [ref=f3e52]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=f3e54]:
+            - generic [ref=f3e55]: "Você:"
+            - paragraph [ref=f3e56]: asass
+          - generic [ref=f3e58]:
+            - generic [ref=f3e59]: "Assistente:"
+            - paragraph [ref=f3e61]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+        - generic [ref=f3e63]:
+          - generic [ref=f3e64]:
+            - paragraph [ref=f3e66]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=f3e67]:
+              - generic [ref=f3e68] [cursor=pointer]:
+                - switch "Exibir fontes" [ref=f3e70]
+                - text: Exibir fontes
+              - paragraph [ref=f3e73]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=f3e74]:
+            - generic [ref=f3e75]:
+              - generic [ref=f3e76]: Pergunta
+              - textbox "Pergunta" [ref=f3e77]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+              - paragraph [ref=f3e78]: Enter envia. Shift+Enter quebra a linha.
+            - button "Enviar" [disabled] [ref=f3e80]

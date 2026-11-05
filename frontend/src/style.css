@@ -79,6 +79,12 @@
   --color-chat-bubble-assistant: var(--theme-chat-bubble-assistant);
   --color-chat-bubble-user: var(--theme-chat-bubble-user);
   --color-text-assistant: var(--theme-text-assistant);
+  /* Composer cards (sources aside + question form). Own token so the shared `surface-raised`
+     (ConfirmDialog, BaseButton hover, MarkdownText code) keeps its value. */
+  --color-composer-card: var(--theme-composer-card);
+  /* Question textarea background (ChatPanel.vue): one step off the composer card so the typing
+     area stands out from it. The shared `surface-raised` was no fit for this either. */
+  --color-composer-input: var(--theme-composer-input);
 }
 
 /* Layout tokens (PRD §9.2). */
@@ -86,10 +92,10 @@
   /* Typography (§9.2) */
   --font-sans: 'Inter', system-ui, sans-serif;
 
-  --text-body: 0.9375rem;
-  --text-body--line-height: 1.6;
-  --text-meta: 0.8125rem;
-  --text-meta--line-height: 1.5;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.4;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.33;
 
   /* Radius (§9.2): rounded-panel for cards/panels, rounded-control for buttons/fields */
   --radius-*: initial;
@@ -125,35 +131,47 @@
     --theme-success: var(--color-app-green-700);
     --theme-warning: var(--color-app-amber-700);
     --theme-danger: var(--color-app-red-700);
-    --theme-chat-canvas: var(--color-app-gray-100);
+    --theme-chat-canvas: var(--color-app-gray-50);
     --theme-chat-bubble-assistant: var(--color-white);
-    --theme-chat-bubble-user: var(--color-app-gray-50);
+    --theme-chat-bubble-user: var(--color-app-gray-100);
     --theme-text-assistant: var(--color-app-gray-900);
+    --theme-composer-card: var(--color-white);
+    --theme-composer-input: var(--color-app-gray-50);
   }
 
-  /* Dark theme (class `dark` on <html>). */
+  /* Dark theme (class `dark` on <html>). Cores baseadas na referência visual:
+     fundo #1E1E1E, sidebar #141414, superfície #242424, bordas #3A3A3A,
+     texto #F2F2F2 / #B8B8B8. A ação primária e o anel de foco espelham o claro
+     (roxo 600/900 no primário, app-purple-400 no foco, igual ao accent);
+     o azul #1687F8 foi aposentado em 4 de novembro de 2026. */
   :root.dark {
     color-scheme: dark;
-    --theme-canvas: var(--color-app-gray-850);
-    --theme-surface: var(--color-app-gray-900);
-    --theme-surface-raised: var(--color-app-gray-700);
-    --theme-border: var(--color-app-gray-600);
-    --theme-control-border: var(--color-app-gray-200);
+    --theme-canvas: #1e1e1e;
+    --theme-surface: #141414;
+    --theme-surface-raised: #242424;
+    --theme-border: #3a3a3a;
+    --theme-control-border: #3a3a3a;
     --theme-focus: var(--color-app-purple-400);
-    --theme-text-primary: var(--color-white);
-    --theme-text-secondary: var(--color-app-gray-200);
-    --theme-primary: var(--color-app-purple-500);
-    --theme-primary-hover: var(--color-app-purple-600);
-    --theme-on-primary: var(--color-white);
-    --theme-on-danger: var(--color-app-gray-850);
+    --theme-text-primary: #f2f2f2;
+    --theme-text-secondary: #b8b8b8;
+    --theme-primary: var(--color-app-purple-600);
+    --theme-primary-hover: var(--color-app-purple-900);
+    --theme-on-primary: #ffffff;
+    --theme-on-danger: #1e1e1e;
     --theme-accent: var(--color-app-purple-400);
-    --theme-success: var(--color-app-green-500);
-    --theme-warning: var(--color-app-amber-300);
-    --theme-danger: var(--color-app-red-300);
-    --theme-chat-canvas: var(--color-app-gray-900);
-    --theme-chat-bubble-assistant: var(--color-app-gray-800);
-    --theme-chat-bubble-user: var(--color-app-gray-700);
-    --theme-text-assistant: var(--color-app-gray-100);
+    --theme-success: #22c55e;
+    --theme-warning: #793bc2;
+    --theme-danger: #ef4444;
+    --theme-chat-canvas: #1e1e1e;
+    --theme-chat-bubble-assistant: #242424;
+    --theme-chat-bubble-user: #303030;
+    --theme-text-assistant: #f2f2f2;
+    /* Composer cards (sources aside + question form), one step lighter than `surface-raised`
+       so they stand out over the canvas; hex literal like the other dark values. */
+    --theme-composer-card: #303030;
+    /* Question typing area, one step lighter than the composer card; hex literal like the
+       other dark values. */
+    --theme-composer-input: #383838;
   }
 
   body {

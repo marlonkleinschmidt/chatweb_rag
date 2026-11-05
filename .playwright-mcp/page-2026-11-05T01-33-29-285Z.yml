@@ -1,0 +1,65 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: verificando conexão..."
+      - button "Ativar tema escuro" [ref=e17]
+  - main [ref=e20]:
+    - region [ref=e21]:
+      - generic [ref=e22]:
+        - heading "Documentos" [level=2] [ref=e24]
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - button "Enviar PDF" [ref=e27]
+            - paragraph [ref=e28]: Um arquivo PDF por vez.
+            - paragraph [ref=e29]:
+              - generic [ref=e32]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=e33]: Carregando documentos...
+    - region [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "Chat" [level=2] [ref=e39]
+          - button "Nova conversa" [ref=e40]
+          - paragraph [ref=e41]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e42]:
+          - generic [ref=e44]:
+            - generic [ref=e45]: "Você:"
+            - paragraph [ref=e46]: teste
+          - generic [ref=e48]:
+            - generic [ref=e49]: "Assistente:"
+            - paragraph [ref=e51]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=e53]:
+            - generic [ref=e54]: "Você:"
+            - paragraph [ref=e55]: asass
+          - generic [ref=e57]:
+            - generic [ref=e58]: "Assistente:"
+            - paragraph [ref=e60]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=e62]:
+            - generic [ref=e63]: "Você:"
+            - paragraph [ref=e64]: linha2
+          - generic [ref=e66]:
+            - generic [ref=e67]: "Assistente:"
+            - paragraph [ref=e69]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=e71]:
+            - generic [ref=e72]: "Você:"
+            - paragraph [ref=e73]: linhaB
+          - generic [ref=e75]:
+            - generic [ref=e76]: "Assistente:"
+            - paragraph [ref=e78]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+        - generic [ref=e80]:
+          - complementary [ref=e81]:
+            - paragraph [ref=e83]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=e84]:
+              - generic [ref=e85] [cursor=pointer]:
+                - switch "Exibir fontes" [ref=e87]
+                - text: Exibir fontes
+              - paragraph [ref=e90]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - generic [ref=e93]: Pergunta
+              - textbox "Pergunta" [ref=e94]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+            - generic [ref=e95]:
+              - generic [ref=e96]: Enter envia. Shift+Enter quebra a linha.
+              - button "Enviar" [disabled] [ref=e98]

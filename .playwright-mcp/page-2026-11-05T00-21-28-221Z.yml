@@ -1,0 +1,57 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - status [ref=e13]:
+          - generic [ref=e14]: "Servidor: indisponível"
+        - button "Tentar novamente" [ref=e17]
+      - button "Ativar tema claro" [ref=e18]
+  - main [ref=e22]:
+    - region [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Documentos" [level=2] [ref=e26]
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - button "Enviar PDF" [ref=e29]
+            - paragraph [ref=e30]: Um arquivo PDF por vez.
+            - paragraph [ref=e31]:
+              - generic [ref=e34]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - generic [ref=e35]:
+            - alert [ref=e36]:
+              - generic [ref=e40]: Não foi possível conectar ao servidor. Verifique se ele está em execução.
+            - button "Tentar novamente" [ref=e41]
+    - region [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "Chat" [level=2] [ref=e45]
+          - button "Nova conversa" [ref=e46]
+          - paragraph [ref=e47]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e48]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: "Você:"
+            - paragraph [ref=e52]: teste
+          - generic [ref=e54]:
+            - generic [ref=e55]: "Assistente:"
+            - paragraph [ref=e57]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+          - generic [ref=e59]:
+            - generic [ref=e60]: "Você:"
+            - paragraph [ref=e61]: asass
+          - generic [ref=e63]:
+            - generic [ref=e64]: "Assistente:"
+            - paragraph [ref=e66]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - paragraph [ref=e71]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=e72]:
+              - generic [ref=e73] [cursor=pointer]:
+                - switch "Exibir fontes" [ref=e75]
+                - text: Exibir fontes
+              - paragraph [ref=e78]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: Pergunta
+              - textbox "Pergunta" [ref=e82]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+              - paragraph [ref=e83]: Enter envia. Shift+Enter quebra a linha.
+            - button "Enviar" [disabled] [ref=e85]
