@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Decorative stroke icon (always aria-hidden). The meaning must come from nearby text.
 export type IconName =
+  | 'add'
   | 'alert'
   | 'check'
   | 'chevron-down'
@@ -18,6 +19,7 @@ defineProps<{
 }>()
 
 const paths: Record<IconName, string[]> = {
+  add: ['M12 5v14M5 12h14'],
   alert: [
     'M12 8v5m0 3.5v.5',
     'M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',

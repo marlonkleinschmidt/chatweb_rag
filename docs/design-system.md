@@ -22,9 +22,9 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 | `focus` | `app-purple-400` | `#A78BFA` | Anel de foco | ≥ 3:1: 5,59 (canvas), 6,88 (surface), 4,15 (surface-raised) |
 | `text-primary` | `white` | `#FFFFFF` | Texto principal | 15,21 (canvas), 18,71 (surface), 11,30 (surface-raised), 10,77 (border) |
 | `text-secondary` | `app-gray-200` | `#A8A8B3` | Texto secundário, metadados, placeholder | 6,46 (canvas), 7,94 (surface), 4,80 (surface-raised) |
-| `primary` | `app-purple-500` | `#8257E6` | Fundo do botão primário; seleção e aba ativa | `text-primary` sobre ele: 4,71:1. Como borda sobre `surface`: 3,97:1. Não usar como anel de foco (2,40:1 sobre `surface-raised`) |
-| `primary-hover` | `app-purple-600` | `#6B46C1` | Hover do botão primário | `text-primary` sobre ele: 6,42:1 |
-| `on-primary` | `white` | `#FFFFFF` | Texto sobre `primary`/`primary-hover` (botão primário) | 4,71 / 6,42 |
+| `primary` | `app-purple-600` | `#6B46C1` | Fundo do botão primário; seleção e aba ativa | `on-primary` (branco) sobre ele: 6,42:1. Não usar como anel de foco |
+| `primary-hover` | `app-purple-900` | `#581C87` | Hover do botão primário | `on-primary` sobre ele: 10,88:1 |
+| `on-primary` | `white` | `#FFFFFF` | Texto sobre `primary`/`primary-hover` (botão primário) | 6,42 / 10,88 |
 | `on-danger` | `app-gray-850` | `#1F2729` | Texto do botão `danger` | 5,45:1 sobre `danger` |
 | `accent` | `app-purple-400` | `#A78BFA` | Marcadores `[n]`, índice da fonte, ícone de informação | 6,88 (surface), 5,59 (canvas); não usar como texto sobre `surface-raised` (4,15:1) |
 | `success` | `app-green-500` | `#04D361` | Pronto | 9,35 (surface), 7,60 (canvas) |
@@ -38,6 +38,8 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 **Paleta `app-*`** (única fonte de hex; os componentes nunca usam `app-*` diretamente): `white` `#FFFFFF`, `black` `#000000`, `transparent`; `app-purple-400` `#A78BFA`, `app-purple-500` `#8257E6`, `app-purple-600` `#6B46C1`, `app-purple-900` `#581C87`; `app-green-500` `#04D361`; `app-gray-50` `#F8F8F8`, `app-gray-100` `#E1E1E6`, `app-gray-200` `#A8A8B3`, `app-gray-300` `#737380`, `app-gray-400` `#52525B`, `app-gray-500` `#414149`, `app-gray-600` `#3D3D44`, `app-gray-700` `#3A3A40`, `app-gray-800` `#29292E`, `app-gray-850` `#1F2729`, `app-gray-900` `#121214`. Fora da paleta do usuário, que não tem amarelo nem vermelho: `app-amber-300` `#F4B860` e `app-red-300` `#F17383` (os valores de `warning` e `danger` do tema anterior, usados no escuro) e `app-green-700` `#047A39`, `app-amber-700` `#8A5A00` e `app-red-700` `#B42335` (variantes do tema claro).
 
 **Botão primário (tarefas 4.8 e 4.9):** fundo sólido `primary` com texto `on-primary` (branco), 4,71:1; no hover, `primary-hover`, 6,42:1. Com `app-gray-50` no lugar do branco, o texto reprovaria (4,44:1). O gradiente da v2.1 foi retirado. `app-gray-300` (antigo `text-muted`) reprova como texto em todos os fundos escuros (3,25 sobre canvas, 4,00 sobre surface, 2,42 sobre surface-raised) e não é usado como token semântico. Confirmar na tarefa 5.2.1.
+
+**Ação primária no escuro e cards do composer (4 de novembro de 2026):** o botão primário e as ações de confirmação voltaram ao roxo, espelhando o claro: `primary` = `app-purple-600` e `primary-hover` = `app-purple-900`. Como a cor e o texto sobre ele (`on-primary`, branco) são os mesmos dos dois temas, os contrastes continuam 6,42:1 (normal) e 10,88:1 (hover). O anel de foco também voltou ao roxo, agora `app-purple-400` no escuro (antes `#1687F8`), com o mínimo de 3:1 nos fundos escuros; o `accent` segue `#1687F8` no escuro. A área de chat (`chat-canvas`) usa `app-gray-50` no claro (o mesmo cinza do `canvas`; o `canvas` global não mudou). Os dois cards do composer (painel de fontes e campo de pergunta) ganharam o token próprio `composer-card` — `white` no claro, `#303030` no escuro (um passo mais claro que o `surface-raised`), com literais no `@layer base` como os demais valores do escuro — para que fiquem mais evidentes que o entorno sem redefinir o `surface-raised` compartilhado (ConfirmDialog, `BaseButton`, `MarkdownText`).
 
 ## Tema claro
 
@@ -65,16 +67,18 @@ Dois temas, claro e escuro, escolhidos pelo usuário (RF-19). Tokens semânticos
 
 `app-green-700`, `app-amber-700` e `app-red-700` são variantes escuras próprias, fora da paleta do usuário, definidas no `@theme` junto de `app-amber-300` e `app-red-300`.
 
-**Seção Chat (tarefa 8.17)**: o cabeçalho do chat ("Chat", "Nova conversa" e a dica) e o log usam `chat-canvas`, mais escuro que o `canvas` em dois passos; o formulário continua em `surface`. As respostas usam `chat-bubble-assistant` (com borda `border`) e texto `text-assistant`; as perguntas, `chat-bubble-user` com `text-primary`. Os cards de fonte (`SourceCard`), dentro do card da resposta, passam de `canvas` para `chat-canvas`, porque `canvas` sobre `chat-bubble-assistant` daria 1,05:1 no escuro; as cores de texto deles não mudam. Os `[n]` (`accent`) e o painel de fontes continuam como estavam. O `AlertBanner` de erro mantém o fundo `surface`.
+**Seção Chat (tarefa 8.17)**: o cabeçalho do chat ("Chat", "Nova conversa" e a dica) e o log usam `chat-canvas`; o rodapé da pergunta fica num container transparente sobre o `chat-canvas` (4 de novembro de 2026), e os dois cards internos (painel de fontes e campo de pergunta) usam o token `composer-card` (4 de novembro de 2026). O campo de digitação dentro do card da pergunta ganhou o token `composer-input` (4 de novembro de 2026): um passo mais escuro que o card branco no claro (`app-gray-50`) e um passo mais claro no escuro (`#383838` sobre `#303030`). As respostas usam `chat-bubble-assistant` (com borda `border`) e texto `text-assistant`; as perguntas, `chat-bubble-user` com `text-primary`. Os cards de fonte (`SourceCard`), dentro do card da resposta, passam de `canvas` para `chat-canvas`, porque `canvas` sobre `chat-bubble-assistant` daria 1,05:1 no escuro; as cores de texto deles não mudam. Os `[n]` (`accent`) e o painel de fontes continuam como estavam. O `AlertBanner` de erro mantém o fundo `surface`.
 
 | Token | Claro | Escuro |
 | --- | --- | --- |
-| `chat-canvas` | `app-gray-100` `#E1E1E6` | `app-gray-900` `#121214` |
+| `chat-canvas` | `app-gray-50` `#F8F8F8` | `app-gray-900` `#121214` |
 | `chat-bubble-assistant` | `white` `#FFFFFF` | `app-gray-800` `#29292E` |
-| `chat-bubble-user` | `app-gray-50` `#F8F8F8` | `app-gray-700` `#3A3A40` |
+| `chat-bubble-user` | `app-gray-100` `#E1E1E6` | `app-gray-700` `#3A3A40` |
+| `composer-card` | `white` `#FFFFFF` | `#303030` (literais no `@layer base`, fora da paleta) |
+| `composer-input` | `app-gray-50` `#F8F8F8` | `#383838` (literais no `@layer base`, fora da paleta) |
 | `text-assistant` | `app-gray-900` `#121214` (igual a `text-primary`) | `app-gray-100` `#E1E1E6` |
 
-No claro, `surface-raised` (`#E1E1E6`, o fundo da bolha do usuário antes da 8.17) seria igual ao novo fundo; por isso a bolha ganhou o token próprio `chat-bubble-user`.
+No claro, `surface-raised` (`#E1E1E6`, o fundo da bolha do usuário antes da 8.17) seria igual ao antigo fundo; por isso a bolha ganhou o token próprio `chat-bubble-user`. Com o `chat-canvas` em `app-gray-50` (4 de novembro de 2026), a bolha do usuário ficou em `app-gray-100` — um passo mais escura que o log, como era a relação antes em direção inversa (1,23:1, decorativo) —, corrigido no mesmo dia em que o fundo mudou. O container do composer (`ChatPanel.vue`) passou de `bg-surface` para `bg-transparent`, porque com os cards em `composer-card` branco no claro, um container branco os nivelaria ao entorno.
 
 Contrastes medidos (WCAG 2.x), claro / escuro:
 
@@ -90,7 +94,7 @@ Contrastes medidos (WCAG 2.x), claro / escuro:
 | `accent` (`[n]`) sobre `chat-bubble-assistant` | 6,42 | 5,32 | 4,5 |
 | `text-secondary` ("Fontes", citação em bloco) sobre `chat-bubble-assistant` | 10,11 | 6,15 | 4,5 |
 | `focus` (`[n]`) sobre `chat-bubble-assistant` | 6,42 | 5,32 | 3 |
-| `text-primary` sobre `chat-bubble-user` | 17,62 | 11,30 | 4,5 |
+| `text-primary` sobre `chat-bubble-user` | 14,34 | 11,30 | 4,5 |
 | `text-primary` / `text-secondary` / `accent` / `focus` no `SourceCard` (`chat-canvas`) | 14,36 / 7,76 / 4,93 / 4,93 | 18,71 / 7,94 / 6,88 / 6,88 | 4,5 / 4,5 / 4,5 / 3 |
 | `chat-bubble-assistant` sobre `chat-canvas` | 1,30 | 1,29 | decorativo |
 | `chat-bubble-user` sobre `chat-canvas` | 1,23 | 1,66 | decorativo |
@@ -102,7 +106,7 @@ Os cards de mensagem e de fonte não são controles: o limite de 3:1 (WCAG 1.4.1
 ## Tipografia, espaço e forma
 
 - Fonte Inter (arquivo local em `assets/fonts`), fallback `system-ui, sans-serif`.
-- Corpo 15 px / line-height 1,6 nas respostas; metadados 13 px; títulos 600–700.
+- Corpo e controles 14 px / ~20 px de linha; texto auxiliar 12 px / ~16 px; títulos de seção 14 px peso 600; título da página ~20 px peso 600.
 - Espaçamento em múltiplos de 4 px.
 - Raio 12 px em cards e painéis; 8 px em botões e campos.
 

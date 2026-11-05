@@ -1,0 +1,26 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=f2e5]
+    - generic [ref=f2e11]:
+      - generic [ref=f2e12]:
+        - status [ref=f2e13]:
+          - generic [ref=f2e14]: "Servidor: indisponível"
+        - button "Tentar novamente" [ref=f2e17]
+      - button "Ativar tema claro" [ref=f2e18]
+  - tablist "Seções" [ref=f2e22]:
+    - tab "Documentos" [selected] [ref=f2e23]
+    - tab "Chat" [ref=f2e24]
+  - main [ref=f2e25]:
+    - tabpanel "Documentos" [ref=f2e26]:
+      - generic [ref=f2e27]:
+        - heading "Documentos" [level=2] [ref=f2e28]
+        - generic [ref=f2e29]:
+          - generic [ref=f2e30]:
+            - button "Enviar PDF" [ref=f2e31]
+            - paragraph [ref=f2e32]: Um arquivo PDF por vez.
+            - paragraph [ref=f2e33]:
+              - generic [ref=f2e36]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - generic [ref=f2e37]:
+            - alert [ref=f2e38]:
+              - generic [ref=f2e42]: Não foi possível conectar ao servidor. Verifique se ele está em execução.
+            - button "Tentar novamente" [ref=f2e43]

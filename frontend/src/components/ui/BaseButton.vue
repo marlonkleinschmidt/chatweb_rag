@@ -25,11 +25,15 @@ const props = withDefaults(
 )
 
 // Colors are semantic tokens; measured contrast is in PRD §9.1 (README > Decisões > Sprint 4, 4.9).
+// Todos os botões, exceto o `primary` e o `danger`, usam a paleta cinza da superfície/borda/texto.
+// O `primary` usa o token `primary` (roxo) nos dois temas (6,42:1 claro/escuro); o anel de foco
+// e o `accent` (citações [n] no texto e nos cards de fontes) também são roxos (4 de novembro de 2026).
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'border border-transparent bg-primary text-on-primary enabled:hover:bg-primary-hover',
-  secondary: 'border border-control-border text-text-primary enabled:hover:bg-border',
+  secondary:
+    'border border-transparent text-text-secondary enabled:hover:bg-surface-raised enabled:hover:text-text-primary',
   ghost:
-    'border border-transparent text-text-secondary enabled:hover:bg-border enabled:hover:text-text-primary',
+    'border border-transparent text-text-secondary enabled:hover:bg-surface-raised enabled:hover:text-text-primary',
   danger: 'border border-transparent bg-danger text-on-danger enabled:hover:brightness-110',
 }
 

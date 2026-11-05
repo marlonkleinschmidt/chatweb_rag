@@ -1,0 +1,5 @@
+[  189672ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/src/style.css?t=1793829151200:0
+[  189675ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:5173/src/components/ui/BaseIcon.vue?t=1793829151200:0
+[  189678ms] [ERROR] [vite] Failed to reload /src/style.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:367
+[  189683ms] [ERROR] [vite] Failed to reload /src/components/ui/BaseIcon.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://localhost:5173/@vite/client:367
+[  189684ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5173/@vite/client:1089

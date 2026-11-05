@@ -1,0 +1,56 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: conectado"
+      - button "Ativar tema claro" [ref=e17]
+  - main [ref=e21]:
+    - region [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Documentos" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Enviar PDF" [ref=e28]
+            - paragraph [ref=e29]: Um arquivo PDF por vez.
+            - paragraph [ref=e30]:
+              - generic [ref=e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - paragraph [ref=e34]: 0 de 10 selecionados
+          - list "Documentos enviados" [ref=e35]:
+            - listitem [ref=e36]:
+              - checkbox "Selecionar SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e37]
+              - generic [ref=e38]:
+                - generic "SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e39] [cursor=pointer]
+                - paragraph [ref=e40]:
+                  - time [ref=e41]: Enviado em 04/11/2026 18:47
+                - generic [ref=e42]: Pronto
+              - button "Remover SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e46]
+            - listitem [ref=e51]:
+              - checkbox "Selecionar SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e52]
+              - generic [ref=e53]:
+                - generic "SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e54] [cursor=pointer]
+                - paragraph [ref=e55]:
+                  - time [ref=e56]: Enviado em 04/11/2026 18:35
+                - generic [ref=e57]: Pronto
+              - button "Remover SM-G97X_UG_BR_Rev.1.4.pdf" [ref=e61]
+    - region [ref=e66]:
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - heading "Chat" [level=2] [ref=e69]
+          - button "Nova conversa" [ref=e70]
+          - paragraph [ref=e71]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e72]:
+          - paragraph [ref=e76]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=e77]:
+          - paragraph [ref=e79]: Selecione ao menos um documento pronto para fazer uma pergunta.
+          - generic [ref=e80]:
+            - generic [ref=e81] [cursor=pointer]:
+              - switch "Exibir fontes" [ref=e83]
+              - text: Exibir fontes
+            - paragraph [ref=e86]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e87]:
+            - generic [ref=e88]: Pergunta
+            - textbox "Pergunta" [ref=e89]:
+              - /placeholder: Pergunte algo sobre os documentos selecionados
+            - paragraph [ref=e90]: Enter envia. Shift+Enter quebra a linha.
+          - button "Enviar" [disabled] [ref=e92]

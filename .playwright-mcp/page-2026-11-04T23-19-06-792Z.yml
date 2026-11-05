@@ -1,0 +1,46 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - status [ref=e13]:
+        - generic [ref=e14]: "Servidor: conectado"
+      - button "Ativar tema claro" [ref=e17]
+  - main [ref=e21]:
+    - region [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Documentos" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Enviar PDF" [ref=e28]
+            - paragraph [ref=e29]: Um arquivo PDF por vez.
+            - paragraph [ref=e30]:
+              - generic [ref=e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=e34]: Carregando documentos...
+    - region [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - heading "Chat" [level=2] [ref=e40]
+          - button "Nova conversa" [ref=e41]
+          - paragraph [ref=e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e43]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: "Você:"
+            - paragraph [ref=e47]: teste
+          - generic [ref=e49]:
+            - generic [ref=e50]: "Assistente:"
+            - paragraph [ref=e52]: Não encontrei evidências suficientes nos documentos selecionados para responder a essa pergunta.
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - paragraph [ref=e57]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=e58]:
+              - generic [ref=e59] [cursor=pointer]:
+                - switch "Exibir fontes" [ref=e61]
+                - text: Exibir fontes
+              - paragraph [ref=e64]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e67]: Pergunta
+              - textbox "Pergunta" [ref=e68]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+              - paragraph [ref=e69]: Enter envia. Shift+Enter quebra a linha.
+            - button "Enviar" [disabled] [ref=e71]

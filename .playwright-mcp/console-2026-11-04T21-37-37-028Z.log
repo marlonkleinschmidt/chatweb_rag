@@ -1,0 +1,2 @@
+[    2372ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8000/api/v1/health:0
+[    2375ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8000/api/v1/documents:0

@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - status [ref=e13]:
+          - generic [ref=e14]: "Servidor: indisponível"
+        - button "Tentar novamente" [ref=e17]
+      - button "Ativar tema claro" [ref=e18]
+  - main [ref=e22]:
+    - region [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Documentos" [level=2] [ref=e26]
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - button "Enviar PDF" [ref=e29]
+            - paragraph [ref=e30]: Um arquivo PDF por vez.
+            - paragraph [ref=e31]:
+              - generic [ref=e34]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - generic [ref=e35]:
+            - alert [ref=e36]:
+              - generic [ref=e40]: Não foi possível conectar ao servidor. Verifique se ele está em execução.
+            - button "Tentar novamente" [ref=e41]
+    - region [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "Chat" [level=2] [ref=e45]
+          - button "Nova conversa" [ref=e46]
+          - paragraph [ref=e47]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e48]:
+          - paragraph [ref=e52]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=e53]:
+          - paragraph [ref=e55]: Selecione ao menos um documento pronto para fazer uma pergunta.
+          - generic [ref=e56]:
+            - generic [ref=e57] [cursor=pointer]:
+              - switch "Exibir fontes" [ref=e59]
+              - text: Exibir fontes
+            - paragraph [ref=e62]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e63]:
+            - generic [ref=e64]: Pergunta
+            - textbox "Pergunta" [ref=e65]:
+              - /placeholder: Pergunte algo sobre os documentos selecionados
+            - paragraph [ref=e66]: Enter envia. Shift+Enter quebra a linha.
+          - button "Enviar" [disabled] [ref=e68]

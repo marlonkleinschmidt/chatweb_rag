@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Assistente RAG para documentos" [level=1] [ref=e5]
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - status [ref=e13]:
+          - generic [ref=e14]: "Servidor: indisponível"
+        - button "Tentar novamente" [ref=e17]
+      - button "Ativar tema escuro" [ref=e18]
+  - main [ref=e21]:
+    - region [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Documentos" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Enviar PDF" [ref=e28]
+            - paragraph [ref=e29]: Um arquivo PDF por vez.
+            - paragraph [ref=e30]:
+              - generic [ref=e33]: Os documentos enviados são processados pela OpenAI para gerar respostas.
+          - status [ref=e34]: Carregando documentos...
+    - region [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - heading "Chat" [level=2] [ref=e40]
+          - button "Nova conversa" [ref=e41]
+          - paragraph [ref=e42]: As próximas perguntas consideram as mensagens anteriores desta conversa.
+        - log "Conversa" [ref=e43]:
+          - paragraph [ref=e47]: Nenhuma pergunta ainda. Selecione documentos prontos e faça uma pergunta.
+        - generic [ref=e49]:
+          - complementary [ref=e50]:
+            - paragraph [ref=e52]: Selecione ao menos um documento pronto para fazer uma pergunta.
+            - generic [ref=e53]:
+              - generic [ref=e54] [cursor=pointer]:
+                - switch "Exibir fontes" [checked] [ref=e56]
+                - text: Exibir fontes
+              - paragraph [ref=e59]: Com as fontes desligadas, a resposta aparece aos poucos, sem citações.
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: Pergunta
+              - textbox "Pergunta" [ref=e63]:
+                - /placeholder: Pergunte algo sobre os documentos selecionados
+            - generic [ref=e64]:
+              - generic [ref=e65]: Enter envia. Shift+Enter quebra a linha.
+              - button "Enviar" [disabled] [ref=e67]
